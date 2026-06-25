@@ -26,14 +26,14 @@
 ### Feature Specs
 - [x] Single-file HTML5/JS (`index.html`).
 - [x] Player ship at the bottom controlled by Left/Right Arrow keys.
-- [ ] Shooting lasers upward using the Spacebar.
-- [ ] A top grid of static 2D alien shapes.
-- [ ] Collision detection (laser hitting alien destroys it, alien laser hitting player ends game).
-- [ ] Score tracking displayed at the top corner.
+- [x] Shooting lasers upward using the Spacebar.
+- [x] A top grid of static 2D alien shapes.
+- [x] Collision detection (laser hitting alien destroys it, alien laser hitting player ends game).
+- [x] Score tracking displayed at the top corner.
 
 ### Local Save System
-- [ ] Save high scores locally on the device using browser `localStorage`.
-- [ ] Structure the save file payload with a robust `timestamp` and a `level_progress` key for future home-server sync compatibility.
+- [x] Save high scores locally on the device using browser `localStorage`.
+- [x] Structure the save file payload with a robust `timestamp` and a `level_progress` key for future home-server sync compatibility.
 
 ---
 
@@ -48,3 +48,13 @@
   * Added the delta-wing player ship with keyboard controls and canvas game loop.
   * Launched background python development server (port 8080).
 * **Next Session Goal:** Implement player laser shooting and render the alien grid.
+
+### Session 2 (2026-06-25) - Space Invaders Gameplay Mechanics
+* **Accomplishments:**
+  * Implemented player laser shooting with cooldown control.
+  * Generated a centered, color-coded grid of 2D pixel-art aliens (Crabs, Octopuses, Squids).
+  * Programmed collision detection for player lasers vs aliens and alien lasers vs player.
+  * Added neon particle explosions on entity destruction.
+  * Added responsive HUD tracking score, wave progression, and high scores.
+  * Designed local save system payload using `localStorage` containing high score, timestamp, and level progress.
+* **Next Session Goal:** Begin implementing Game 2 (Retro Snake) or add advanced polish (e.g. bunkers/shields) to Space Invaders.

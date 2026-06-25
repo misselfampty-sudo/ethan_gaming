@@ -349,8 +349,49 @@
 
     // Load High Scores from localstorage on start
     function loadHighScores() {
-      const spaceHighScore = localStorage.getItem("space_invaders_highscore") || 0;
-      document.getElementById("space-high-score").innerText = `High Score: ${spaceHighScore}`;
+      const rawData = localStorage.getItem("space_invaders_highscore_data");
+      let highScore = 0;
+      if (rawData) {
+        try {
+          const parsed = JSON.parse(rawData);
+          highScore = parsed.highScore || 0;
+        } catch (e) {
+          // Fallback if saved as plain number
+          highScore = parseInt(rawData) || 0;
+        }
+      } else {
+        const oldScore = localStorage.getItem("space_invaders_highscore");
+        if (oldScore) {
+          highScore = parseInt(oldScore) || 0;
+        }
+      }
+      document.getElementById("space-high-score").innerText = `High Score: ${highScore}`;
+    }
+
+    // Save High Scores with timestamp and level progress
+    function saveHighScore(score, level) {
+      const rawData = localStorage.getItem("space_invaders_highscore_data");
+      let currentHighScore = 0;
+      if (rawData) {
+        try {
+          currentHighScore = JSON.parse(rawData).highScore || 0;
+        } catch (e) {
+          currentHighScore = parseInt(rawData) || 0;
+        }
+      } else {
+        const oldScore = localStorage.getItem("space_invaders_highscore");
+        if (oldScore) currentHighScore = parseInt(oldScore) || 0;
+      }
+
+      if (score > currentHighScore) {
+        const savePayload = {
+          highScore: score,
+          timestamp: Date.now(),
+          level_progress: level
+        };
+        localStorage.setItem("space_invaders_highscore_data", JSON.stringify(savePayload));
+        localStorage.setItem("space_invaders_highscore", score);
+      }
     }
 
     // Switch from dashboard to the chosen game
@@ -384,12 +425,58 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    // Pixel art alien shapes (10 columns by 8 rows grid)
+    // 1 represents a filled pixel, 0 represents empty space
+    const ALIEN_SHAPES = [
+      // Shape A: Crab/Tentacles (Teal)
+      [
+        [0,0,1,0,0,0,0,1,0,0],
+        [0,0,0,1,0,0,1,0,0,0],
+        [0,0,1,1,1,1,1,1,0,0],
+        [0,1,1,0,1,1,0,1,1,0],
+        [1,1,1,1,1,1,1,1,1,1],
+        [1,0,1,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,1,0,1],
+        [0,0,0,1,1,1,1,0,0,0]
+      ],
+      // Shape B: Octopus (Pink)
+      [
+        [0,0,0,1,1,1,1,0,0,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,0,0,1,1,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1],
+        [0,0,1,1,1,1,1,1,0,0],
+        [0,1,1,0,0,0,0,1,1,0],
+        [1,1,0,0,0,0,0,0,1,1]
+      ],
+      // Shape C: Squid (Green)
+      [
+        [0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,1,1,1,0,0,0],
+        [0,0,1,1,1,1,1,1,0,0],
+        [0,1,1,0,1,1,0,1,1,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [0,0,0,1,0,0,1,0,0,0],
+        [0,0,1,0,1,1,0,1,0,0],
+        [0,1,0,1,0,0,1,0,1,0]
+      ]
+    ];
+
     // Game variables
     let player = {};
     let keys = {};
+    let score = 0;
+    let level = 1;
+    let gameOver = false;
+    let lasers = [];
+    let alienLasers = [];
+    let particles = [];
+    let shootCooldown = 0;
+    let aliens = [];
 
+    // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
-      // Initialize or reset game variables
       player = {
         width: 40,
         height: 24,
@@ -405,8 +492,87 @@
         Space: false
       };
 
-      // Start the heartbeat!
+      score = 0;
+      level = 1;
+      gameOver = false;
+      lasers = [];
+      alienLasers = [];
+      particles = [];
+      shootCooldown = 0;
+
+      // Spawn initial wave of aliens
+      spawnAliens();
+
+      // If a loop was already running, cancel it first to prevent multiple speed loops
+      if (activeGameLoop) {
+        cancelAnimationFrame(activeGameLoop);
+      }
+
+      // Start the heartbeat of the game!
       runGame();
+    }
+
+    // Grid generator for the alien invasion fleet
+    function spawnAliens() {
+      aliens = [];
+      const cols = 8;
+      const rows = 4;
+      const spacingX = 60; // spacing between alien columns
+      const spacingY = 40; // spacing between alien rows
+      
+      // Calculate startX to center the 8 columns on our 600px canvas
+      // Grid width = (7 cols * 60px spacing) + 30px alien width = 450px
+      // Margin = (600px canvas - 450px grid) / 2 = 75px
+      const startX = 75;
+      const startY = 60; // offset from top so UI doesn't overlap
+      
+      for (let r = 0; r < rows; r++) {
+        // Assign shape based on row index
+        const shapeIndex = r % ALIEN_SHAPES.length;
+        let color = "#00f0ff"; // Row 0: Teal
+        let points = 40;
+        
+        if (r === 1) { color = "#ff007f"; points = 30; }      // Row 1: Pink
+        if (r === 2) { color = "#39ff14"; points = 20; }      // Row 2: Green
+        if (r === 3) { color = "#ffbc00"; points = 10; }      // Row 3: Orange/Yellow
+        
+        for (let c = 0; c < cols; c++) {
+          aliens.push({
+            x: startX + c * spacingX,
+            y: startY + r * spacingY,
+            width: 30, // 10 columns * 3px pixelSize
+            height: 24, // 8 rows * 3px pixelSize
+            shape: ALIEN_SHAPES[shapeIndex],
+            color: color,
+            points: points
+          });
+        }
+      }
+    }
+
+    // Create a particle explosion effect at coordinates (x, y)
+    function createExplosion(x, y, color) {
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          size: Math.random() * 3 + 2,
+          color: color,
+          alpha: 1,
+          decay: Math.random() * 0.03 + 0.015
+        });
+      }
+    }
+
+    // AABB rectangle collision helper
+    function rectCollision(rect1, rect2) {
+      return rect1.x < rect2.x + rect2.width &&
+             rect1.x + rect1.width > rect2.x &&
+             rect1.y < rect2.y + rect2.height &&
+             rect1.y + rect1.height > rect2.y;
     }
 
     // Capture Key presses
@@ -415,6 +581,10 @@
       if (event.code === "ArrowRight") keys.ArrowRight = true;
       if (event.code === "Space") {
         keys.Space = true;
+        // Re-start game on Space key if game is over
+        if (gameOver) {
+          startSpaceInvaders();
+        }
         event.preventDefault();
       }
     });
@@ -425,8 +595,11 @@
       if (event.code === "Space") keys.Space = false;
     });
 
-    // Update coordinates
+    // Update coordinates and check collisions
     function updateGame() {
+      if (gameOver) return;
+
+      // Move player left/right
       if (keys.ArrowLeft) {
         player.x -= player.speed;
         if (player.x < 0) player.x = 0;
@@ -437,6 +610,115 @@
           player.x = canvas.width - player.width;
         }
       }
+
+      // Handle player laser fire and cooldown
+      if (shootCooldown > 0) {
+        shootCooldown--;
+      }
+      if (keys.Space && shootCooldown === 0) {
+        lasers.push({
+          x: player.x + player.width / 2 - 2,
+          y: player.y,
+          width: 4,
+          height: 12,
+          speed: 8,
+          color: "#00f0ff"
+        });
+        shootCooldown = 20; // 20 frames cooldown (approx 1/3 second)
+      }
+
+      // Update player lasers
+      for (let i = lasers.length - 1; i >= 0; i--) {
+        let l = lasers[i];
+        l.y -= l.speed;
+        
+        // Remove if goes off-screen
+        if (l.y < 0) {
+          lasers.splice(i, 1);
+          continue;
+        }
+        
+        // Collision: Player Lasers vs Aliens
+        for (let j = aliens.length - 1; j >= 0; j--) {
+          let a = aliens[j];
+          if (rectCollision(l, a)) {
+            createExplosion(a.x + a.width / 2, a.y + a.height / 2, a.color);
+            score += a.points;
+            
+            aliens.splice(j, 1);
+            lasers.splice(i, 1);
+            
+            // If all aliens are destroyed, progress to next level wave!
+            if (aliens.length === 0) {
+              level++;
+              spawnAliens();
+            }
+            break;
+          }
+        }
+      }
+
+      // Alien shooting frequency (increases with levels!)
+      if (aliens.length > 0 && Math.random() < 0.008 + (level * 0.002)) {
+        const shooter = aliens[Math.floor(Math.random() * aliens.length)];
+        alienLasers.push({
+          x: shooter.x + shooter.width / 2 - 1.5,
+          y: shooter.y + shooter.height,
+          width: 3,
+          height: 15,
+          speed: 3 + level * 0.5,
+          color: shooter.color
+        });
+      }
+
+      // Update alien lasers
+      for (let i = alienLasers.length - 1; i >= 0; i--) {
+        let al = alienLasers[i];
+        al.y += al.speed;
+        
+        // Remove if off-screen
+        if (al.y > canvas.height) {
+          alienLasers.splice(i, 1);
+          continue;
+        }
+        
+        // Collision: Alien Lasers vs Player Ship
+        if (rectCollision(al, { x: player.x, y: player.y, width: player.width, height: player.height })) {
+          createExplosion(player.x + player.width / 2, player.y + player.height / 2, player.color);
+          createExplosion(player.x + player.width / 2, player.y + player.height / 2, "#ff007f");
+          gameOver = true;
+          alienLasers.splice(i, 1);
+          saveHighScore(score, level);
+          break;
+        }
+      }
+
+      // Update particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    // Draw pixelated alien shape using small 3x3 blocks
+    function drawAlienPixelShape(ctx, shape, x, y, pixelSize, color) {
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = color;
+      
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c] === 1) {
+            ctx.fillRect(x + c * pixelSize, y + r * pixelSize, pixelSize, pixelSize);
+          }
+        }
+      }
+      ctx.shadowBlur = 0;
     }
 
     // Render elements
@@ -461,6 +743,11 @@
         ctx.stroke();
       }
 
+      // Draw active aliens
+      for (let a of aliens) {
+        drawAlienPixelShape(ctx, a.shape, a.x, a.y, 3, a.color);
+      }
+
       // Draw glowing Delta Wing Space Ship
       ctx.fillStyle = player.color;
       ctx.shadowBlur = 12;
@@ -477,6 +764,78 @@
 
       // Reset shadows
       ctx.shadowBlur = 0;
+
+      // Draw player lasers
+      for (let l of lasers) {
+        ctx.fillStyle = l.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = l.color;
+        ctx.fillRect(l.x, l.y, l.width, l.height);
+      }
+      ctx.shadowBlur = 0;
+
+      // Draw alien lasers
+      for (let al of alienLasers) {
+        ctx.fillStyle = al.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = al.color;
+        ctx.fillRect(al.x, al.y, al.width, al.height);
+      }
+      ctx.shadowBlur = 0;
+
+      // Draw particles
+      for (let p of particles) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+
+      // Draw HUD (Heads-Up Display)
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "16px 'Share Tech Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(`SCORE: ${score}`, 20, 30);
+      
+      ctx.textAlign = "center";
+      ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
+      
+      const highScoreData = localStorage.getItem("space_invaders_highscore_data");
+      let hi = 0;
+      if (highScoreData) {
+        try { hi = JSON.parse(highScoreData).highScore || 0; } catch(e) {}
+      }
+      ctx.textAlign = "right";
+      ctx.fillText(`HI-SCORE: ${Math.max(hi, score)}`, canvas.width - 20, 30);
+
+      // Draw Game Over Screen
+      if (gameOver) {
+        ctx.fillStyle = "rgba(11, 13, 25, 0.85)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = "#ff007f"; // Neon pink
+        ctx.font = "bold 36px 'Outfit', sans-serif";
+        ctx.textAlign = "center";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ff007f";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "16px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 0;
+        ctx.fillText(`FINAL SCORE: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.fillText(`WAVE REACHED: ${level}`, canvas.width / 2, canvas.height / 2 + 45);
+        
+        ctx.fillStyle = "#00f0ff"; // Neon teal
+        ctx.font = "14px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#00f0ff";
+        ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2, canvas.height / 2 + 85);
+        ctx.shadowBlur = 0;
+      }
     }
 
     // Main running game loop
