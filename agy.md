@@ -30,6 +30,12 @@
 
 ## Progress Log
 
-### Current State
-* Workspace initialized with `agy.md` and `.agents/AGENTS.md` rules.
-* **Next Step:** Generate foundational `index.html` structure with an HTML5 canvas and basic player movement loop.
+### Step 1: Workspace Initialization
+- [x] Initialized workspace rules via `AGENTS.md`.
+- [x] Generated foundational `index.html` structure with HTML5 canvas and basic player movement.
+
+### Step 2: Game Logic Development
+- [ ] (Next Step) Implement player laser shooting mechanics (Spacebar) and render the top grid of static alien shapes.
+- [ ] Implement collision detection and basic win/loss state.
+- [ ] Implement local score tracking and localStorage saving.
+
