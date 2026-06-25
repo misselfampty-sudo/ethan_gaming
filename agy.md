@@ -3,12 +3,15 @@
 ## System Reference & Setup
 * **Lenovo Home Server SSH Updates:** Direct updates allowed only when strictly necessary, must not affect other server projects.
 * **Deployment Workflow:** Git commits -> CI/CD pipelines. (Currently working 100% locally with Git until remote link is established).
+* **Local Dev Server:** Active in background on port `8080` (bound to `0.0.0.0`).
+  * Local link: http://localhost:8080
+  * Network link: http://192.168.68.104:8080
 
 ## Guidelines
 * **Target Audience:** 10-year-old child developer learning to code. Keep explanations encouraging, straightforward, and educational.
 * **Environment Constraints:** 100% ad-free, tracker-free, and playable offline.
 * **Architecture:** Lightweight, single-file HTML5/CSS/JavaScript. Zero external assets (draw graphics programmatically using HTML Canvas/CSS).
-* **Target Hosting:** Local Nginx in Docker sandbox (bound to `0.0.0.0`).
+* **Target Hosting:** Local Nginx in Docker sandbox.
 
 ---
 
@@ -21,8 +24,8 @@
 ## Game 1: Space Invaders Mini
 
 ### Feature Specs
-- [ ] Single-file HTML5/JS (`index.html`).
-- [ ] Player ship at the bottom controlled by Left/Right Arrow keys.
+- [x] Single-file HTML5/JS (`index.html`).
+- [x] Player ship at the bottom controlled by Left/Right Arrow keys.
 - [ ] Shooting lasers upward using the Spacebar.
 - [ ] A top grid of static 2D alien shapes.
 - [ ] Collision detection (laser hitting alien destroys it, alien laser hitting player ends game).
@@ -36,14 +39,12 @@
 
 ## Progress Log
 
-### Step 1: Workspace Initialization
-- [x] Initialized workspace rules via `AGENTS.md`.
-- [x] Generated foundational `index.html` structure with HTML5 canvas and basic player movement.
-- [x] Built the Games Dashboard wrapper and screen-toggling logic.
-
-### Step 2: Game Logic Development
-- [ ] (Next Step) Implement player laser shooting mechanics (Spacebar) and render the top grid of static alien shapes.
-- [ ] Implement collision detection and basic win/loss state.
-- [ ] Implement local score tracking and localStorage saving.
-
-
+### Session 1 (2026-06-25) - Workspace Setup & Dashboard
+* **Accomplishments:**
+  * Initialized workspace rules in `.agents/AGENTS.md`.
+  * Created the session tracker `agy.md`.
+  * Initialized local Git repository.
+  * Designed the retro arcade dashboard in `index.html` with card selection and state-toggling.
+  * Added the delta-wing player ship with keyboard controls and canvas game loop.
+  * Launched background python development server (port 8080).
+* **Next Session Goal:** Implement player laser shooting and render the alien grid.
