@@ -319,6 +319,170 @@
       color: var(--accent-teal);
       border: 1px solid #334155;
     }
+
+    /* PROFILE & LEADERBOARD SECTION */
+    .dashboard-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin: 0 auto 40px auto;
+      text-align: left;
+    }
+
+    .meta-panel {
+      background-color: var(--panel-bg);
+      border: 2px solid #232a4e;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: left;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .meta-panel h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      color: var(--accent-teal);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1.5px solid #232a4e;
+      padding-bottom: 10px;
+    }
+
+    .active-profile-banner {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(255, 0, 127, 0.08));
+      border: 1px dashed var(--accent-teal);
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .active-profile-name {
+      color: var(--accent-teal);
+      text-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+    }
+
+    .profile-input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .profile-input {
+      flex: 1;
+      background-color: #0d1021;
+      border: 1px solid #232a4e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text-color);
+      font-family: inherit;
+    }
+
+    .profile-input:focus {
+      outline: none;
+      border-color: var(--accent-teal);
+      box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
+    }
+
+    .btn-action {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--accent-teal);
+      color: var(--accent-teal);
+      border-radius: 8px;
+      padding: 8px 15px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+    }
+
+    .btn-action:hover {
+      background-color: var(--accent-teal);
+      color: var(--bg-color);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    .profile-list {
+      max-height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 8px;
+      background-color: #0d1021;
+      border: 1px solid #1a1e36;
+    }
+
+    .profile-badge {
+      background-color: var(--panel-bg);
+      border: 1px solid #232a4e;
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-color);
+      font-family: inherit;
+    }
+
+    .profile-badge:hover {
+      border-color: var(--accent-teal);
+      color: var(--accent-teal);
+    }
+
+    .profile-badge.active {
+      border-color: var(--accent-pink);
+      color: var(--accent-pink);
+      background-color: rgba(255, 0, 127, 0.05);
+      font-weight: bold;
+    }
+
+    /* LEADERBOARD TABLE */
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .leaderboard-table th {
+      text-align: left;
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--muted-text);
+      padding: 8px;
+      border-bottom: 2px solid #232a4e;
+    }
+
+    .leaderboard-table td {
+      padding: 8px;
+      border-bottom: 1px solid #1e2443;
+    }
+
+    .leaderboard-row:hover {
+      background-color: rgba(255,255,255,0.02);
+    }
+
+    .rank-cell {
+      font-family: 'Share Tech Mono', monospace;
+      font-weight: bold;
+      color: var(--accent-pink);
+      width: 40px;
+    }
+
+    .score-cell {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--accent-green);
+      font-weight: bold;
+    }
+
+    .level-cell {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--muted-text);
+    }
   </style>
 </head>
 <body>
@@ -346,6 +510,47 @@
     <div id="dashboard-screen">
       <h1 class="arcade-title">Ethan's Retro Arcade</h1>
       <p class="arcade-subtitle">Select a game to start playing and learning!</p>
+
+      <!-- Profile & Leaderboard Section -->
+      <div class="dashboard-meta-grid">
+        <!-- Profile Panel -->
+        <div class="meta-panel">
+          <h2>👤 Active Player</h2>
+          <div class="active-profile-banner">
+            <span>Playing as: <span class="active-profile-name" id="current-player-name">Ethan</span> 🚀</span>
+          </div>
+          
+          <div class="profile-input-group">
+            <input type="text" id="new-profile-input" class="profile-input" placeholder="Friend's Name" maxlength="12">
+            <button class="btn-action" onclick="createNewProfile()">+ Add Profile</button>
+          </div>
+          
+          <p style="margin: 15px 0 5px 0; font-size: 0.9rem; color: var(--muted-text); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Switch Player:</p>
+          <div class="profile-list" id="profiles-badge-list">
+            <!-- Badges loaded dynamically -->
+          </div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div class="meta-panel">
+          <h2>🏆 Arcade Leaderboard (Space Invaders)</h2>
+          <div style="max-height: 200px; overflow-y: auto;">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Player</th>
+                  <th>Score</th>
+                  <th>Progress</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-body">
+                <!-- Rows loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <div class="game-grid">
         <!-- Space Invaders Mini Card (Playable) -->
@@ -410,50 +615,196 @@
     const gameScreen = document.getElementById("game-screen");
     let activeGameLoop = null; // Stores our animation frame ID so we can stop it
 
-    // Load High Scores from localstorage on start
-    function loadHighScores() {
-      const rawData = localStorage.getItem("space_invaders_highscore_data");
-      let highScore = 0;
-      if (rawData) {
-        try {
-          const parsed = JSON.parse(rawData);
-          highScore = parsed.highScore || 0;
-        } catch (e) {
-          // Fallback if saved as plain number
-          highScore = parseInt(rawData) || 0;
-        }
-      } else {
-        const oldScore = localStorage.getItem("space_invaders_highscore");
-        if (oldScore) {
-          highScore = parseInt(oldScore) || 0;
-        }
-      }
-      document.getElementById("space-high-score").innerText = `High Score: ${highScore}`;
+    // Profile & Leaderboard State
+    let profiles = {};
+    let activeProfileName = "Ethan";
+
+    // Save profiles database back to localStorage
+    function saveProfilesToStorage() {
+      localStorage.setItem("arcade_profiles", JSON.stringify(profiles));
+      localStorage.setItem("active_profile_name", activeProfileName);
     }
 
-    // Save High Scores with timestamp and level progress
-    function saveHighScore(score, level) {
-      const rawData = localStorage.getItem("space_invaders_highscore_data");
-      let currentHighScore = 0;
-      if (rawData) {
+    // Initialize or load profiles database
+    function loadProfiles() {
+      const storedProfiles = localStorage.getItem("arcade_profiles");
+      const storedActive = localStorage.getItem("active_profile_name");
+      
+      if (storedProfiles) {
         try {
-          currentHighScore = JSON.parse(rawData).highScore || 0;
+          profiles = JSON.parse(storedProfiles);
         } catch (e) {
-          currentHighScore = parseInt(rawData) || 0;
+          profiles = {};
         }
-      } else {
-        const oldScore = localStorage.getItem("space_invaders_highscore");
-        if (oldScore) currentHighScore = parseInt(oldScore) || 0;
       }
-
-      if (score > currentHighScore) {
-        const savePayload = {
-          highScore: score,
-          timestamp: Date.now(),
-          level_progress: level
+      
+      // Default to Ethan if no profiles exist
+      if (Object.keys(profiles).length === 0) {
+        profiles = {
+          "Ethan": {
+            name: "Ethan",
+            highScores: {
+              "space-invaders": { score: 0, level: 1, timestamp: Date.now() }
+            }
+          }
         };
-        localStorage.setItem("space_invaders_highscore_data", JSON.stringify(savePayload));
-        localStorage.setItem("space_invaders_highscore", score);
+      }
+      
+      if (storedActive && profiles[storedActive]) {
+        activeProfileName = storedActive;
+      } else {
+        activeProfileName = Object.keys(profiles)[0];
+      }
+      
+      saveProfilesToStorage();
+      renderProfileUI();
+      renderLeaderboard();
+      updateDashboardScores();
+    }
+
+    // Render active profile name and profile selector badges
+    function renderProfileUI() {
+      const activeEl = document.getElementById("current-player-name");
+      if (activeEl) {
+        activeEl.innerText = activeProfileName;
+      }
+      
+      const listEl = document.getElementById("profiles-badge-list");
+      if (listEl) {
+        listEl.innerHTML = "";
+        for (const name in profiles) {
+          const badge = document.createElement("button");
+          badge.className = `profile-badge ${name === activeProfileName ? 'active' : ''}`;
+          badge.innerText = name;
+          badge.onclick = () => {
+            selectProfile(name);
+          };
+          listEl.appendChild(badge);
+        }
+      }
+    }
+
+    // Switch current player
+    function selectProfile(name) {
+      if (profiles[name]) {
+        activeProfileName = name;
+        saveProfilesToStorage();
+        renderProfileUI();
+        updateDashboardScores();
+        loadHighScores(); 
+      }
+    }
+
+    // Create a new friend profile
+    function createNewProfile() {
+      const input = document.getElementById("new-profile-input");
+      if (!input) return;
+      const name = input.value.trim();
+      
+      if (!name) {
+        alert("Please enter a name first!");
+        return;
+      }
+      
+      if (name.length > 12) {
+        alert("Name must be 12 characters or less!");
+        return;
+      }
+      
+      if (profiles[name]) {
+        alert("This profile already exists! Click their name below to switch.");
+        return;
+      }
+      
+      profiles[name] = {
+        name: name,
+        highScores: {
+          "space-invaders": { score: 0, level: 1, timestamp: Date.now() }
+        }
+      };
+      
+      activeProfileName = name;
+      input.value = "";
+      saveProfilesToStorage();
+      renderProfileUI();
+      renderLeaderboard();
+      updateDashboardScores();
+      loadHighScores();
+    }
+
+    // Draw the leaderboard ranking table
+    function renderLeaderboard() {
+      const leaderboardBody = document.getElementById("leaderboard-body");
+      if (!leaderboardBody) return;
+      
+      const list = [];
+      for (const name in profiles) {
+        const si = profiles[name].highScores?.["space-invaders"] || { score: 0, level: 1 };
+        list.push({
+          name: name,
+          score: si.score,
+          level: si.level
+        });
+      }
+      
+      // Sort with highest scores at top
+      list.sort((a, b) => b.score - a.score);
+      
+      leaderboardBody.innerHTML = "";
+      list.forEach((item, index) => {
+        const row = document.createElement("tr");
+        row.className = "leaderboard-row";
+        row.innerHTML = `
+          <td class="rank-cell">#${index + 1}</td>
+          <td style="font-weight: bold; color: ${item.name === activeProfileName ? 'var(--accent-teal)' : 'inherit'}">${item.name} ${item.name === activeProfileName ? '🚀' : ''}</td>
+          <td class="score-cell">${item.score}</td>
+          <td class="level-cell">Wave ${item.level}</td>
+        `;
+        leaderboardBody.appendChild(row);
+      });
+    }
+
+    // Update active player's personal high scores and records on the dashboard card
+    function updateDashboardScores() {
+      const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
+      
+      let globalBest = 0;
+      let globalBestPlayer = "Ethan";
+      for (const name in profiles) {
+        const score = profiles[name].highScores?.["space-invaders"]?.score || 0;
+        if (score > globalBest) {
+          globalBest = score;
+          globalBestPlayer = name;
+        }
+      }
+      
+      const tag = document.getElementById("space-high-score");
+      if (tag) {
+        tag.innerText = `My Best: ${activeBest} | Record: ${globalBest} (${globalBestPlayer})`;
+      }
+    }
+
+    // Reload active player score display on start/reset
+    function loadHighScores() {
+      updateDashboardScores();
+      renderLeaderboard();
+    }
+
+    // Save score to active player profile
+    function saveHighScore(score, level) {
+      const activeProfile = profiles[activeProfileName];
+      if (!activeProfile.highScores) activeProfile.highScores = {};
+      const currentPersonalBest = activeProfile.highScores["space-invaders"]?.score || 0;
+      
+      if (score > currentPersonalBest) {
+        activeProfile.highScores["space-invaders"] = {
+          score: score,
+          level: level,
+          timestamp: Date.now()
+        };
+        saveProfilesToStorage();
+        renderLeaderboard();
+        updateDashboardScores();
       }
     }
 
@@ -866,13 +1217,9 @@
       ctx.textAlign = "center";
       ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
       
-      const highScoreData = localStorage.getItem("space_invaders_highscore_data");
-      let hi = 0;
-      if (highScoreData) {
-        try { hi = JSON.parse(highScoreData).highScore || 0; } catch(e) {}
-      }
+      const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
       ctx.textAlign = "right";
-      ctx.fillText(`HI-SCORE: ${Math.max(hi, score)}`, canvas.width - 20, 30);
+      ctx.fillText(`MY BEST: ${Math.max(activeBest, score)}`, canvas.width - 20, 30);
 
       // Draw Game Over Screen
       if (gameOver) {
@@ -909,7 +1256,7 @@
     }
 
     // Initial score load on page open
-    loadHighScores();
+    loadProfiles();
   </script>
 </body>
 </html>
