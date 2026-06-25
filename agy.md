@@ -18,6 +18,7 @@
 ## Shared Features
 - [x] **Interactive Games Dashboard**: A home screen portal with selection cards for multiple games (Space Invaders, Snake, Tetris).
 - [x] **State Management**: Switching between screens dynamically without page reloads, and stopping/starting game loops.
+- [x] **Profiles & Leaderboard System**: Add player profiles, switch active player, track personal bests, and display a global sorted leaderboard using `localStorage`.
 
 ---
 
@@ -49,7 +50,7 @@
   * Launched background python development server (port 8080).
 * **Next Session Goal:** Implement player laser shooting and render the alien grid.
 
-### Session 2 (2026-06-25) - Space Invaders Gameplay Mechanics
+### Session 2 (2026-06-25) - Space Invaders Gameplay Mechanics & Profiles
 * **Accomplishments:**
   * Implemented player laser shooting with cooldown control.
   * Generated a centered, color-coded grid of 2D pixel-art aliens (Crabs, Octopuses, Squids).
@@ -57,4 +58,5 @@
   * Added neon particle explosions on entity destruction.
   * Added responsive HUD tracking score, wave progression, and high scores.
   * Designed local save system payload using `localStorage` containing high score, timestamp, and level progress.
+  * Built a multi-user profile system (add profiles, switch active player) and a dynamic global leaderboard on the dashboard.
 * **Next Session Goal:** Begin implementing Game 2 (Retro Snake) or add advanced polish (e.g. bunkers/shields) to Space Invaders.
