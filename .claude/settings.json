@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/session-context.sh",
+            "statusMessage": "Loading project context..."
+          }
+        ]
+      }
+    ]
+  }
+}
