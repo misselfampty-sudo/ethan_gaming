@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, arcade]
+    runs-on: [arcade]
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +38,3 @@ jobs:
           done
           echo "❌ API failed to start"
           exit 1
-
-      - name: Reload Nginx
-        run: sudo systemctl reload nginx
