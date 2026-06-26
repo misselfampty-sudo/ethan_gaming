@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  arcade-app:
+    build: .
+    container_name: ethan-arcade
+    ports:
+      - "8080:80" # Map host port 8080 to container port 80
+    restart: always
+    read_only: true
+    networks:
+      - arcade_network
+
+networks:
+  arcade_network:
+    driver: bridge
