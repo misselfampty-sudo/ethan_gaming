@@ -1,0 +1,52 @@
+name: Deploy Backend & Database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'docker-compose.prod.yml'
+      - 'nginx.prod.conf'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, arcade]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy backend files to arcade home
+        run: |
+          cp -r server /home/arcade/app/
+          cp docker-compose.prod.yml /home/arcade/app/
+          cp nginx.prod.conf /home/arcade/app/
+
+      - name: Start/update Docker containers
+        run: |
+          cd /home/arcade/app
+          docker-compose -f docker-compose.prod.yml down || true
+          docker-compose -f docker-compose.prod.yml up -d
+
+      - name: Wait for services to be ready
+        run: |
+          sleep 5
+          echo "Waiting for API to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✅ API is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30..."
+            sleep 1
+          done
+          echo "❌ API failed to start"
+          exit 1
+
+      - name: Verify deployment
+        run: |
+          curl -v http://localhost/api/health
+          curl -v http://localhost/api/leaderboard
+
+      - name: Reload Nginx
+        run: |
+          sudo systemctl reload nginx
