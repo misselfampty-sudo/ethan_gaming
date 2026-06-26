@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, arcade]
+    runs-on: [arcade]
     steps:
       - uses: actions/checkout@v4
       - name: Deploy to arcade server
