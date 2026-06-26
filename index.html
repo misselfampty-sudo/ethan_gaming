@@ -872,7 +872,7 @@
         nextDirection: { x: 1, y: 0 },
         food: { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) },
         goldenFood: null,
-        goldenFoodTimer: 0,
+        goldenFoodSpawnTime: 0,
         foodCount: 0,
         score: 0,
         gameOver: false,
@@ -934,7 +934,7 @@
         if (snakeGame.goldenFood && newHead.x === snakeGame.goldenFood.x && newHead.y === snakeGame.goldenFood.y) {
           snakeGame.score += 20; // Double points!
           snakeGame.goldenFood = null;
-          snakeGame.goldenFoodTimer = 0;
+          snakeGame.goldenFoodSpawnTime = 0;
 
           // Particle burst with golden color
           for (let i = 0; i < 10; i++) {
@@ -964,7 +964,7 @@
               x: Math.floor(Math.random() * COLS),
               y: Math.floor(Math.random() * ROWS)
             };
-            snakeGame.goldenFoodTimer = 180; // 3 seconds at 60 ticks/sec
+            snakeGame.goldenFoodSpawnTime = Date.now(); // Timestamp in milliseconds
           }
 
           // Spawn regular food
@@ -989,12 +989,10 @@
           snakeGame.snake.shift();
         }
 
-        // Decrement golden food timer
-        if (snakeGame.goldenFood && snakeGame.goldenFoodTimer > 0) {
-          snakeGame.goldenFoodTimer--;
-          if (snakeGame.goldenFoodTimer <= 0) {
-            snakeGame.goldenFood = null;
-          }
+        // Check if golden food expired (3 seconds = 3000ms)
+        if (snakeGame.goldenFood && Date.now() - snakeGame.goldenFoodSpawnTime > 3000) {
+          snakeGame.goldenFood = null;
+          snakeGame.goldenFoodSpawnTime = 0;
         }
 
         // Update particles
@@ -1046,7 +1044,8 @@
         if (snakeGame.goldenFood) {
           const pulse = Math.sin(Date.now() / 200) * 0.5 + 0.5; // Pulsing effect
           const scale = 0.6 + pulse * 0.4; // Size varies 0.6 to 1.0
-          const opacity = snakeGame.goldenFoodTimer / 180; // Fade as timer runs out
+          const timeElapsed = Date.now() - snakeGame.goldenFoodSpawnTime;
+          const opacity = Math.max(0, 1 - (timeElapsed / 3000)); // Fade as timer runs out
 
           ctx.save();
           ctx.globalAlpha = opacity;
@@ -1124,7 +1123,8 @@
 
         // Draw golden food timer if active
         if (snakeGame.goldenFood) {
-          const secondsLeft = Math.ceil(snakeGame.goldenFoodTimer / 60);
+          const timeElapsed = Date.now() - snakeGame.goldenFoodSpawnTime;
+          const secondsLeft = Math.max(0, Math.ceil((3000 - timeElapsed) / 1000));
           ctx.fillStyle = "#ffdd00";
           ctx.font = "20px 'Share Tech Mono', monospace";
           ctx.shadowBlur = 10;
