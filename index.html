@@ -863,8 +863,8 @@
       const ctx = canvas.getContext("2d");
 
       const GRID_SIZE = 20;
-      const COLS = canvas.width / GRID_SIZE;
-      const ROWS = canvas.height / GRID_SIZE;
+      const COLS = Math.floor(canvas.width / GRID_SIZE);
+      const ROWS = Math.floor(canvas.height / GRID_SIZE);
 
       snakeGame = {
         snake: [{ x: 10, y: 10 }],
@@ -954,6 +954,10 @@
           snakeGame.score += 10;
           snakeGame.foodCount++;
 
+          // Store old food position for particle burst
+          const oldFoodX = snakeGame.food.x;
+          const oldFoodY = snakeGame.food.y;
+
           // Spawn golden food every 5th food
           if (snakeGame.foodCount % 5 === 0) {
             snakeGame.goldenFood = {
@@ -969,11 +973,11 @@
             y: Math.floor(Math.random() * ROWS)
           };
 
-          // Particle burst at food location
+          // Particle burst at eaten food location (not new location)
           for (let i = 0; i < 6; i++) {
             snakeGame.particles.push({
-              x: snakeGame.food.x * GRID_SIZE + GRID_SIZE / 2,
-              y: snakeGame.food.y * GRID_SIZE + GRID_SIZE / 2,
+              x: oldFoodX * GRID_SIZE + GRID_SIZE / 2,
+              y: oldFoodY * GRID_SIZE + GRID_SIZE / 2,
               vx: (Math.random() - 0.5) * 8,
               vy: (Math.random() - 0.5) * 8,
               size: Math.random() * 8 + 4,
