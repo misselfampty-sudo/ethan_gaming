@@ -791,18 +791,17 @@
       renderLeaderboard();
     }
 
-    // Save score to active player profile
+    // Save score to active player profile (syncs to server via arcadeSync)
     function saveHighScore(score, level) {
       const activeProfile = profiles[activeProfileName];
       if (!activeProfile.highScores) activeProfile.highScores = {};
       const currentPersonalBest = activeProfile.highScores["space-invaders"]?.score || 0;
-      
+
       if (score > currentPersonalBest) {
-        activeProfile.highScores["space-invaders"] = {
-          score: score,
-          level: level,
-          timestamp: Date.now()
-        };
+        // Update via sync manager (handles server persistence + offline queue)
+        arcadeSync.updateScore(activeProfileName, "space-invaders", score, level);
+
+        // Sync to local display
         saveProfilesToStorage();
         renderLeaderboard();
         updateDashboardScores();
@@ -1258,6 +1257,11 @@
 
     // Initial score load on page open
     loadProfiles();
+  </script>
+  <script src="/arcade-sync.js"></script>
+  <script>
+    // Initialize server sync (offline-first, last-write-wins)
+    arcadeSync.init();
   </script>
 </body>
 </html>
