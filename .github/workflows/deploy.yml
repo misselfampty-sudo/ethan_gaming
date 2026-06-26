@@ -22,8 +22,9 @@ jobs:
       - name: Start/update backend services
         run: |
           cd /home/arcade/app
-          docker-compose -f docker-compose.prod.yml down || true
-          docker-compose -f docker-compose.prod.yml up -d
+          docker rm -f arcade-nginx arcade-api arcade-postgres 2>/dev/null || true
+          docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+          docker-compose -f docker-compose.prod.yml up -d --force-recreate
 
       - name: Wait for API to be ready
         run: |
