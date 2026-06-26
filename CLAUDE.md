@@ -38,23 +38,62 @@ This is Ethan's retro games project built with single-file HTML5/Canvas. 100% of
 
 ## Architecture
 
-### Game State
-- **Profiles:** Multi-user support via `localStorage` (player names, personal bests)
-- **Leaderboard:** Global high scores sorted by score, persisted in localStorage
+### Frontend (Single-file HTML5)
+- **Profiles:** Multi-user support stored locally + synced to server
+- **Leaderboard:** Global high scores sorted by score (server-authoritative)
 - **Games:** Dynamic state machine switches between dashboard, games, and pause screens without page reloads
+- **Offline Support:** Plays offline, syncs when reconnected
 
 ### Canvas Loop
 - Single `requestAnimationFrame` loop handles all rendering and game logic
 - Collision detection, entity updates, and drawing all in one tick
 - No external physics engine — simple math
 
-### localStorage Structure
-```javascript
-// Player profile
-{ name: "Ethan", bestScore: 1250, timestamp: "2026-06-25T..." }
+### Backend (Node.js + PostgreSQL)
+**Purpose:** Persistent profile and score storage with conflict resolution
 
-// Game state
-{ gameState: "dashboard", activePlayer: "Ethan", profiles: [...] }
+**Schema:**
+- `profiles` table: player names, creation timestamps, version numbers
+- `high_scores` table: per-player scores with timestamps (last-write-wins)
+- `sync_log` table: audit trail of all syncs and conflicts
+
+**Sync Strategy (Last-Write-Wins):**
+```
+Client submits: { score: 1250, timestamp: 1687234567890 }
+Server checks:  if clientTimestamp > serverTimestamp → accept client score
+Server stores:  Both client and server timestamps for next sync
+Conflict example:
+  - Device A: score 1000 at 2pm
+  - Device B: score 500 at 3pm (syncs first)
+  - Device A syncs: 2pm < 3pm → keeps server's 500
+  - But 1000 > 500, so next Device A sync updates it to 1000
+  - Final: server has 1000 (newest data wins)
+```
+
+### Offline-First Sync
+1. **Play offline:** Game saves to localStorage with timestamp
+2. **Come online:** Browser detects `online` event
+3. **Auto-sync:** `arcadeSync.syncNow()` sends queued updates to server
+4. **Merge:** Server returns authoritative state, client updates if newer
+5. **Queue cleared:** Offline queue erased after successful sync
+
+### Data Flow
+```
+Player plays → saves score locally (localStorage)
+     ↓
+arcadeSync.updateScore(name, game, score, timestamp)
+     ↓
+Auto-sync every 30s (if online) or on reconnect
+     ↓
+Server receives POST /api/sync {profiles, timestamp}
+     ↓
+Server compares timestamps, applies last-write-wins
+     ↓
+Server returns current authoritative scores
+     ↓
+Client merges: newer scores replace older ones locally
+     ↓
+Offline queue cleared, ready for next offline session
 ```
 
 ---
@@ -117,15 +156,56 @@ The GitHub Actions workflow will automatically deploy to the home server.
 
 ---
 
-## Docker (Optional Local Testing)
+## Backend Deployment (Server-Side Sync)
 
-Run the Nginx container locally:
+**Status:** Ready to deploy to home server
 
-```bash
-docker-compose up
+**Architecture:**
+```
+Client (index.html + arcade-sync.js)
+    ↓ /api/* requests
+Nginx (port 8082) — proxies /api/ to backend
+    ↓
+Node.js API (port 3000, internal only)
+    ↓
+PostgreSQL (local database)
 ```
 
-Then visit http://localhost:8080 (the docker-compose.yml maps port 8080).
+**Deploy on Home Server (192.168.68.150):**
+
+See `server/README.md` for full setup instructions. TL;DR:
+
+```bash
+# SSH into arcade@192.168.68.150
+ssh arcade@192.168.68.150
+cd /home/arcade/app
+
+# Option A: Docker Compose (easiest)
+docker-compose -f docker-compose.prod.yml up -d
+
+# Option B: Manual (requires Node.js + PostgreSQL)
+cd server && npm install && npm run migrate
+npm start
+
+# Then update Nginx config to proxy /api/ → http://localhost:3000
+sudo systemctl reload nginx
+```
+
+**Verify it's working:**
+```bash
+curl http://192.168.68.150:8082/api/health
+# Should return: {"status":"ok","timestamp":...}
+```
+
+## Docker (Optional Local Testing)
+
+Run the full stack locally (frontend + backend):
+
+```bash
+docker-compose -f docker-compose.prod.yml up
+```
+
+Then visit http://localhost:8082 (Nginx + API + PostgreSQL all in containers).
 
 ---
 
