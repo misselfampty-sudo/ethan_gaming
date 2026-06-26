@@ -563,13 +563,13 @@
           <div class="high-score-tag" id="space-high-score">High Score: 0</div>
         </div>
 
-        <!-- Snake Game (Locked placeholder) -->
-        <div class="game-card coming-soon">
+        <!-- Snake Game (Playable) -->
+        <div class="game-card" onclick="launchGame('retro-snake')">
           <div class="card-icon">🐍</div>
           <h2 class="card-title">Retro Snake</h2>
           <p class="card-desc">Steer the grid snake to eat pixels and grow. Don't crash into the walls or yourself!</p>
-          <span class="card-badge badge-locked">Coming Soon</span>
-          <div class="high-score-tag">High Score: --</div>
+          <span class="card-badge badge-playable">Play Now</span>
+          <div class="high-score-tag" id="snake-high-score">High Score: 0</div>
         </div>
 
         <!-- Tetris (Locked placeholder) -->
@@ -645,7 +645,8 @@
           "Ethan": {
             name: "Ethan",
             highScores: {
-              "space-invaders": { score: 0, level: 1, timestamp: Date.now() }
+              "space-invaders": { score: 0, level: 1, timestamp: Date.now() },
+              "retro-snake": { score: 0, level: 1, timestamp: Date.now() }
             }
           }
         };
@@ -720,7 +721,8 @@
       profiles[name] = {
         name: name,
         highScores: {
-          "space-invaders": { score: 0, level: 1, timestamp: Date.now() }
+          "space-invaders": { score: 0, level: 1, timestamp: Date.now() },
+          "retro-snake": { score: 0, level: 1, timestamp: Date.now() }
         }
       };
       
@@ -765,23 +767,38 @@
       });
     }
 
-    // Update active player's personal high scores and records on the dashboard card
+    // Update active player's personal high scores and records on the dashboard cards
     function updateDashboardScores() {
-      const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
-      
-      let globalBest = 0;
-      let globalBestPlayer = "Ethan";
+      // Space Invaders
+      const siActiveBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
+      let siGlobalBest = 0;
+      let siGlobalBestPlayer = "Ethan";
       for (const name in profiles) {
         const score = profiles[name].highScores?.["space-invaders"]?.score || 0;
-        if (score > globalBest) {
-          globalBest = score;
-          globalBestPlayer = name;
+        if (score > siGlobalBest) {
+          siGlobalBest = score;
+          siGlobalBestPlayer = name;
         }
       }
-      
-      const tag = document.getElementById("space-high-score");
-      if (tag) {
-        tag.innerText = `My Best: ${activeBest} | Record: ${globalBest} (${globalBestPlayer})`;
+      const siTag = document.getElementById("space-high-score");
+      if (siTag) {
+        siTag.innerText = `My Best: ${siActiveBest} | Record: ${siGlobalBest} (${siGlobalBestPlayer})`;
+      }
+
+      // Snake
+      const snakeActiveBest = profiles[activeProfileName]?.highScores?.["retro-snake"]?.score || 0;
+      let snakeGlobalBest = 0;
+      let snakeGlobalBestPlayer = "Ethan";
+      for (const name in profiles) {
+        const score = profiles[name].highScores?.["retro-snake"]?.score || 0;
+        if (score > snakeGlobalBest) {
+          snakeGlobalBest = score;
+          snakeGlobalBestPlayer = name;
+        }
+      }
+      const snakeTag = document.getElementById("snake-high-score");
+      if (snakeTag) {
+        snakeTag.innerText = `My Best: ${snakeActiveBest} | Record: ${snakeGlobalBest} (${snakeGlobalBestPlayer})`;
       }
     }
 
@@ -792,14 +809,14 @@
     }
 
     // Save score to active player profile (syncs to server via arcadeSync)
-    function saveHighScore(score, level) {
+    function saveHighScore(gameId, score, level) {
       const activeProfile = profiles[activeProfileName];
       if (!activeProfile.highScores) activeProfile.highScores = {};
-      const currentPersonalBest = activeProfile.highScores["space-invaders"]?.score || 0;
+      const currentPersonalBest = activeProfile.highScores[gameId]?.score || 0;
 
       if (score > currentPersonalBest) {
         // Update via sync manager (handles server persistence + offline queue)
-        arcadeSync.updateScore(activeProfileName, "space-invaders", score, level);
+        arcadeSync.updateScore(activeProfileName, gameId, score, level);
 
         // Sync to local display
         saveProfilesToStorage();
@@ -810,10 +827,13 @@
 
     // Switch from dashboard to the chosen game
     function launchGame(gameId) {
+      dbScreen.style.display = "none";
+      gameScreen.style.display = "block";
+
       if (gameId === 'space-invaders') {
-        dbScreen.style.display = "none";
-        gameScreen.style.display = "block";
         startSpaceInvaders();
+      } else if (gameId === 'retro-snake') {
+        startSnake();
       }
     }
 
@@ -831,6 +851,235 @@
       // 3. Switch screen views
       gameScreen.style.display = "none";
       dbScreen.style.display = "block";
+    }
+
+    // ==========================================
+    //            RETRO SNAKE GAME CODE
+    // ==========================================
+    let snakeGame = null;
+
+    function startSnake() {
+      const canvas = document.getElementById("game-canvas");
+      const ctx = canvas.getContext("2d");
+
+      const GRID_SIZE = 20;
+      const COLS = canvas.width / GRID_SIZE;
+      const ROWS = canvas.height / GRID_SIZE;
+
+      snakeGame = {
+        snake: [{ x: 10, y: 10 }],
+        direction: { x: 1, y: 0 },
+        nextDirection: { x: 1, y: 0 },
+        food: { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) },
+        score: 0,
+        gameOver: false,
+        scoreSaved: false,
+        particles: []
+      };
+
+      // Keyboard input
+      const handleKeyDown = (e) => {
+        const key = e.key.toLowerCase();
+
+        if (key === 'arrowup' || key === 'w') {
+          if (snakeGame.direction.y === 0) snakeGame.nextDirection = { x: 0, y: -1 };
+        }
+        else if (key === 'arrowdown' || key === 's') {
+          if (snakeGame.direction.y === 0) snakeGame.nextDirection = { x: 0, y: 1 };
+        }
+        else if (key === 'arrowleft' || key === 'a') {
+          if (snakeGame.direction.x === 0) snakeGame.nextDirection = { x: -1, y: 0 };
+        }
+        else if (key === 'arrowright' || key === 'd') {
+          if (snakeGame.direction.x === 0) snakeGame.nextDirection = { x: 1, y: 0 };
+        }
+        else if (key === ' ') {
+          if (snakeGame.gameOver) {
+            startSnake(); // Restart
+          }
+          e.preventDefault();
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+
+      function updateSnake() {
+        if (snakeGame.gameOver) return;
+
+        snakeGame.direction = snakeGame.nextDirection;
+        const head = snakeGame.snake[snakeGame.snake.length - 1];
+        const newHead = {
+          x: (head.x + snakeGame.direction.x + COLS) % COLS,
+          y: (head.y + snakeGame.direction.y + ROWS) % ROWS
+        };
+
+        // Check self collision
+        for (let segment of snakeGame.snake) {
+          if (segment.x === newHead.x && segment.y === newHead.y) {
+            snakeGame.gameOver = true;
+            if (!snakeGame.scoreSaved) {
+              saveHighScore("retro-snake", Math.floor(snakeGame.score / 10), 1);
+              snakeGame.scoreSaved = true;
+            }
+            return;
+          }
+        }
+
+        snakeGame.snake.push(newHead);
+
+        // Check food collision
+        if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
+          snakeGame.score += 10;
+          snakeGame.food = {
+            x: Math.floor(Math.random() * COLS),
+            y: Math.floor(Math.random() * ROWS)
+          };
+
+          // Particle burst at food location
+          for (let i = 0; i < 6; i++) {
+            snakeGame.particles.push({
+              x: snakeGame.food.x * GRID_SIZE + GRID_SIZE / 2,
+              y: snakeGame.food.y * GRID_SIZE + GRID_SIZE / 2,
+              vx: (Math.random() - 0.5) * 8,
+              vy: (Math.random() - 0.5) * 8,
+              size: Math.random() * 8 + 4,
+              alpha: 1,
+              color: ['#39ff14', '#00f0ff', '#ff007f'][Math.floor(Math.random() * 3)]
+            });
+          }
+        } else {
+          snakeGame.snake.shift();
+        }
+
+        // Update particles
+        snakeGame.particles = snakeGame.particles.filter(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= 0.05;
+          return p.alpha > 0;
+        });
+      }
+
+      function drawSnake() {
+        // Clear canvas
+        ctx.fillStyle = "#070913";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid (subtle)
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.05)";
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= COLS; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * GRID_SIZE, 0);
+          ctx.lineTo(i * GRID_SIZE, canvas.height);
+          ctx.stroke();
+        }
+        for (let i = 0; i <= ROWS; i++) {
+          ctx.beginPath();
+          ctx.moveTo(0, i * GRID_SIZE);
+          ctx.lineTo(canvas.width, i * GRID_SIZE);
+          ctx.stroke();
+        }
+
+        // Draw food
+        ctx.fillStyle = "#39ff14";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#39ff14";
+        ctx.beginPath();
+        ctx.arc(
+          snakeGame.food.x * GRID_SIZE + GRID_SIZE / 2,
+          snakeGame.food.y * GRID_SIZE + GRID_SIZE / 2,
+          GRID_SIZE / 2 - 2,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Draw snake
+        for (let i = 0; i < snakeGame.snake.length; i++) {
+          const segment = snakeGame.snake[i];
+          const isHead = i === snakeGame.snake.length - 1;
+
+          if (isHead) {
+            ctx.fillStyle = "#00f0ff";
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = "#00f0ff";
+          } else {
+            ctx.fillStyle = "#ff007f";
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = "#ff007f";
+          }
+
+          ctx.fillRect(
+            segment.x * GRID_SIZE + 1,
+            segment.y * GRID_SIZE + 1,
+            GRID_SIZE - 2,
+            GRID_SIZE - 2
+          );
+        }
+        ctx.shadowBlur = 0;
+
+        // Draw particles
+        for (let p of snakeGame.particles) {
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = p.color;
+          ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+          ctx.restore();
+        }
+
+        // Draw HUD
+        ctx.fillStyle = "#00f0ff";
+        ctx.font = "24px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#00f0ff";
+        ctx.textAlign = "left";
+        ctx.fillText(`SCORE: ${snakeGame.score}`, 20, 40);
+        ctx.shadowBlur = 0;
+
+        // Draw game over screen
+        if (snakeGame.gameOver) {
+          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = "#ff007f";
+          ctx.font = "bold 48px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = "#ff007f";
+          ctx.textAlign = "center";
+          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "20px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 0;
+          ctx.fillText(`FINAL SCORE: ${snakeGame.score}`, canvas.width / 2, canvas.height / 2 + 30);
+
+          ctx.fillStyle = "#00f0ff";
+          ctx.font = "16px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = "#00f0ff";
+          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2, canvas.height / 2 + 80);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      let gameSpeed = 8;
+      let tickCount = 0;
+
+      function runSnake() {
+        tickCount++;
+        if (tickCount >= gameSpeed) {
+          updateSnake();
+          tickCount = 0;
+        }
+        drawSnake();
+        activeGameLoop = requestAnimationFrame(runSnake);
+      }
+
+      runSnake();
     }
 
     // ==========================================
@@ -1102,7 +1351,7 @@
           createExplosion(player.x + player.width / 2, player.y + player.height / 2, "#ff007f");
           gameOver = true;
           alienLasers.splice(i, 1);
-          saveHighScore(score, level);
+          saveHighScore("space-invaders", score, level);
           break;
         }
       }
