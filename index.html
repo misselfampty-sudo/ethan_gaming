@@ -871,6 +871,9 @@
         direction: { x: 1, y: 0 },
         nextDirection: { x: 1, y: 0 },
         food: { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) },
+        goldenFood: null,
+        goldenFoodTimer: 0,
+        foodCount: 0,
         score: 0,
         gameOver: false,
         scoreSaved: false,
@@ -927,9 +930,40 @@
 
         snakeGame.snake.push(newHead);
 
-        // Check food collision
-        if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
+        // Check golden food collision (priority)
+        if (snakeGame.goldenFood && newHead.x === snakeGame.goldenFood.x && newHead.y === snakeGame.goldenFood.y) {
+          snakeGame.score += 20; // Double points!
+          snakeGame.goldenFood = null;
+          snakeGame.goldenFoodTimer = 0;
+
+          // Particle burst with golden color
+          for (let i = 0; i < 10; i++) {
+            snakeGame.particles.push({
+              x: newHead.x * GRID_SIZE + GRID_SIZE / 2,
+              y: newHead.y * GRID_SIZE + GRID_SIZE / 2,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              size: Math.random() * 10 + 5,
+              alpha: 1,
+              color: '#ffdd00'
+            });
+          }
+        }
+        // Check regular food collision
+        else if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
           snakeGame.score += 10;
+          snakeGame.foodCount++;
+
+          // Spawn golden food every 5th food
+          if (snakeGame.foodCount % 5 === 0) {
+            snakeGame.goldenFood = {
+              x: Math.floor(Math.random() * COLS),
+              y: Math.floor(Math.random() * ROWS)
+            };
+            snakeGame.goldenFoodTimer = 180; // 3 seconds at 60 ticks/sec
+          }
+
+          // Spawn regular food
           snakeGame.food = {
             x: Math.floor(Math.random() * COLS),
             y: Math.floor(Math.random() * ROWS)
@@ -949,6 +983,14 @@
           }
         } else {
           snakeGame.snake.shift();
+        }
+
+        // Decrement golden food timer
+        if (snakeGame.goldenFood && snakeGame.goldenFoodTimer > 0) {
+          snakeGame.goldenFoodTimer--;
+          if (snakeGame.goldenFoodTimer <= 0) {
+            snakeGame.goldenFood = null;
+          }
         }
 
         // Update particles
@@ -996,6 +1038,42 @@
         ctx.fill();
         ctx.shadowBlur = 0;
 
+        // Draw golden food (bonus, double points, 3 second timer)
+        if (snakeGame.goldenFood) {
+          const pulse = Math.sin(Date.now() / 200) * 0.5 + 0.5; // Pulsing effect
+          const scale = 0.6 + pulse * 0.4; // Size varies 0.6 to 1.0
+          const opacity = snakeGame.goldenFoodTimer / 180; // Fade as timer runs out
+
+          ctx.save();
+          ctx.globalAlpha = opacity;
+          ctx.fillStyle = "#ffdd00";
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = "#ffdd00";
+          ctx.beginPath();
+          ctx.arc(
+            snakeGame.goldenFood.x * GRID_SIZE + GRID_SIZE / 2,
+            snakeGame.goldenFood.y * GRID_SIZE + GRID_SIZE / 2,
+            (GRID_SIZE / 2 - 2) * scale,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Draw a ring around it
+          ctx.strokeStyle = "#ffdd00";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(
+            snakeGame.goldenFood.x * GRID_SIZE + GRID_SIZE / 2,
+            snakeGame.goldenFood.y * GRID_SIZE + GRID_SIZE / 2,
+            (GRID_SIZE / 2 + 2) * scale,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // Draw snake
         for (let i = 0; i < snakeGame.snake.length; i++) {
           const segment = snakeGame.snake[i];
@@ -1039,6 +1117,17 @@
         ctx.textAlign = "left";
         ctx.fillText(`SCORE: ${snakeGame.score}`, 20, 40);
         ctx.shadowBlur = 0;
+
+        // Draw golden food timer if active
+        if (snakeGame.goldenFood) {
+          const secondsLeft = Math.ceil(snakeGame.goldenFoodTimer / 60);
+          ctx.fillStyle = "#ffdd00";
+          ctx.font = "20px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "#ffdd00";
+          ctx.fillText(`🌟 BONUS ${secondsLeft}s`, 20, 70);
+          ctx.shadowBlur = 0;
+        }
 
         // Draw game over screen
         if (snakeGame.gameOver) {
