@@ -541,8 +541,16 @@
                 <tr>
                   <th>Rank</th>
                   <th>Player</th>
+                  <th colspan="2" style="text-align: center;">Space Invaders</th>
+                  <th colspan="2" style="text-align: center;">Snake</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th></th>
                   <th>Score</th>
-                  <th>Progress</th>
+                  <th>Wave</th>
+                  <th>Score</th>
+                  <th>Level</th>
                 </tr>
               </thead>
               <tbody id="leaderboard-body">
@@ -739,29 +747,36 @@
     function renderLeaderboard() {
       const leaderboardBody = document.getElementById("leaderboard-body");
       if (!leaderboardBody) return;
-      
+
       const list = [];
       for (const name in profiles) {
         const si = profiles[name].highScores?.["space-invaders"] || { score: 0, level: 1 };
+        const snake = profiles[name].highScores?.["retro-snake"] || { score: 0, level: 1 };
         list.push({
           name: name,
-          score: si.score,
-          level: si.level
+          siScore: si.score,
+          siLevel: si.level,
+          snakeScore: snake.score,
+          snakeLevel: snake.level
         });
       }
-      
-      // Sort with highest scores at top
-      list.sort((a, b) => b.score - a.score);
-      
+
+      // Sort with highest Space Invaders scores at top
+      list.sort((a, b) => b.siScore - a.siScore);
+
       leaderboardBody.innerHTML = "";
       list.forEach((item, index) => {
         const row = document.createElement("tr");
         row.className = "leaderboard-row";
+        const isActive = item.name === activeProfileName;
+        const highlight = isActive ? 'color: var(--accent-teal); font-weight: bold;' : '';
         row.innerHTML = `
           <td class="rank-cell">#${index + 1}</td>
-          <td style="font-weight: bold; color: ${item.name === activeProfileName ? 'var(--accent-teal)' : 'inherit'}">${item.name} ${item.name === activeProfileName ? '🚀' : ''}</td>
-          <td class="score-cell">${item.score}</td>
-          <td class="level-cell">Wave ${item.level}</td>
+          <td style="font-weight: bold; color: ${isActive ? 'var(--accent-teal)' : 'inherit'}">${item.name} ${isActive ? '🚀' : ''}</td>
+          <td class="score-cell">${item.siScore}</td>
+          <td class="level-cell">Wave ${item.siLevel}</td>
+          <td class="score-cell">${item.snakeScore}</td>
+          <td class="level-cell">Lvl ${item.snakeLevel}</td>
         `;
         leaderboardBody.appendChild(row);
       });
