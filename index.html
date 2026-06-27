@@ -1233,6 +1233,8 @@
     let powerUps = [];
     let multiShotActive = false;
     let multiShotTimer = 0;
+    let lives = 3;
+    let invulnerableTimer = 0;
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
@@ -1254,10 +1256,15 @@
       score = 0;
       level = 1;
       gameOver = false;
+      lives = 3;
+      invulnerableTimer = 0;
       lasers = [];
       alienLasers = [];
       particles = [];
       shootCooldown = 0;
+      powerUps = [];
+      multiShotActive = false;
+      multiShotTimer = 0;
 
       // Spawn initial wave of aliens
       spawnAliens();
@@ -1379,6 +1386,9 @@
       } else {
         multiShotActive = false;
       }
+      if (invulnerableTimer > 0) {
+        invulnerableTimer--;
+      }
 
       if (keys.Space && shootCooldown === 0) {
         if (multiShotActive) {
@@ -1492,12 +1502,22 @@
         }
         
         // Collision: Alien Lasers vs Player Ship
-        if (rectCollision(al, { x: player.x, y: player.y, width: player.width, height: player.height })) {
+        if (rectCollision(al, { x: player.x, y: player.y, width: player.width, height: player.height }) && invulnerableTimer === 0) {
           createExplosion(player.x + player.width / 2, player.y + player.height / 2, player.color);
           createExplosion(player.x + player.width / 2, player.y + player.height / 2, "#ff007f");
-          gameOver = true;
+
+          lives--;
           alienLasers.splice(i, 1);
-          saveHighScore("space-invaders", score, level);
+
+          if (lives <= 0) {
+            gameOver = true;
+            saveHighScore("space-invaders", score, level);
+          } else {
+            // Reset player position and give temporary invulnerability
+            player.x = (canvas.width - 40) / 2;
+            player.y = canvas.height - 40;
+            invulnerableTimer = 120; // 2 seconds of invulnerability (120 frames at 60 FPS)
+          }
           break;
         }
       }
@@ -1593,18 +1613,21 @@
       }
 
       // Draw glowing Delta Wing Space Ship
-      ctx.fillStyle = player.color;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = player.color;
+      // Blink when invulnerable
+      if (invulnerableTimer === 0 || Math.floor(invulnerableTimer / 10) % 2 === 0) {
+        ctx.fillStyle = player.color;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = player.color;
 
-      ctx.beginPath();
-      ctx.moveTo(player.x + player.width / 2, player.y);
-      ctx.lineTo(player.x + player.width, player.y + player.height);
-      ctx.lineTo(player.x + player.width * 0.8, player.y + player.height * 0.8);
-      ctx.lineTo(player.x + player.width * 0.2, player.y + player.height * 0.8);
-      ctx.lineTo(player.x, player.y + player.height);
-      ctx.closePath();
-      ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.width / 2, player.y);
+        ctx.lineTo(player.x + player.width, player.y + player.height);
+        ctx.lineTo(player.x + player.width * 0.8, player.y + player.height * 0.8);
+        ctx.lineTo(player.x + player.width * 0.2, player.y + player.height * 0.8);
+        ctx.lineTo(player.x, player.y + player.height);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       // Reset shadows
       ctx.shadowBlur = 0;
@@ -1685,13 +1708,22 @@
       ctx.font = "16px 'Share Tech Mono', monospace";
       ctx.textAlign = "left";
       ctx.fillText(`SCORE: ${score}`, 20, 30);
-      
+
       ctx.textAlign = "center";
       ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
-      
+
       const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
       ctx.textAlign = "right";
       ctx.fillText(`MY BEST: ${Math.max(activeBest, score)}`, canvas.width - 20, 30);
+
+      // Draw lives indicator
+      ctx.textAlign = "left";
+      ctx.fillStyle = lives <= 1 ? "#ff007f" : "#00f0ff";
+      ctx.font = "bold 18px 'Share Tech Mono', monospace";
+      ctx.shadowBlur = lives <= 1 ? 10 : 0;
+      ctx.shadowColor = "#ff007f";
+      ctx.fillText(`❤️ ${lives}`, 20, canvas.height - 20);
+      ctx.shadowBlur = 0;
 
       // Draw Game Over Screen
       if (gameOver) {
