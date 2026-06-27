@@ -1577,6 +1577,7 @@
         if (keys.Space && trophyScreenSpaceReleased) {
           showTrophyScreen = false;
           level++;
+          lives = 3; // Reset lives for new level
           spawnAliens();
         }
         return;
@@ -1843,6 +1844,7 @@
               // If all aliens are destroyed, progress to next level wave!
               if (aliens.length === 0) {
                 level++;
+                lives = 3; // Reset lives for new level
                 spawnAliens();
               }
               break;
