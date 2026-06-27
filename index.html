@@ -1086,27 +1086,82 @@
           ctx.restore();
         }
 
-        // Draw snake
+        // Draw snake with gradient and smooth curves
         for (let i = 0; i < snakeGame.snake.length; i++) {
           const segment = snakeGame.snake[i];
           const isHead = i === snakeGame.snake.length - 1;
+          const nextSegment = i < snakeGame.snake.length - 1 ? snakeGame.snake[i + 1] : null;
+
+          // Color gradient: bright for head, darker towards tail
+          const hue = 300; // Magenta/pink hue
+          const saturation = isHead ? 100 : 70;
+          const lightness = isHead ? 50 : 30 + (i / snakeGame.snake.length) * 20;
+          const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+          ctx.fillStyle = color;
+          ctx.strokeStyle = color;
+          ctx.shadowBlur = isHead ? 16 : 8;
+          ctx.shadowColor = color;
+
+          const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
+          const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
+          const size = isHead ? GRID_SIZE - 1 : GRID_SIZE - 2;
 
           if (isHead) {
-            ctx.fillStyle = "#00f0ff";
-            ctx.shadowBlur = 16;
-            ctx.shadowColor = "#00f0ff";
-          } else {
-            ctx.fillStyle = "#ff007f";
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = "#ff007f";
-          }
+            // Draw head as larger circle with more glow
+            ctx.beginPath();
+            ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+            ctx.fill();
 
-          ctx.fillRect(
-            segment.x * GRID_SIZE + 1,
-            segment.y * GRID_SIZE + 1,
-            GRID_SIZE - 2,
-            GRID_SIZE - 2
-          );
+            // Draw eyes pointing in direction of next segment
+            const eyeSize = 3;
+            const eyeDistance = size / 4;
+
+            // Determine direction based on next segment
+            let eyeOffsetX = 0;
+            let eyeOffsetY = 0;
+            if (nextSegment) {
+              eyeOffsetX = (nextSegment.x - segment.x) * eyeDistance;
+              eyeOffsetY = (nextSegment.y - segment.y) * eyeDistance;
+            } else if (snakeGame.snake.length > 1) {
+              // If no next segment, use previous direction
+              const prev = snakeGame.snake[snakeGame.snake.length - 2];
+              eyeOffsetX = (segment.x - prev.x) * eyeDistance;
+              eyeOffsetY = (segment.y - prev.y) * eyeDistance;
+            }
+
+            // Left eye
+            ctx.fillStyle = "#ffff00";
+            ctx.shadowColor = "#ffff00";
+            ctx.beginPath();
+            ctx.arc(x - 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Right eye
+            ctx.beginPath();
+            ctx.arc(x + 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            // Draw body segments as circles
+            ctx.beginPath();
+            ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw connecting line to next segment
+            if (nextSegment) {
+              const nextX = nextSegment.x * GRID_SIZE + GRID_SIZE / 2;
+              const nextY = nextSegment.y * GRID_SIZE + GRID_SIZE / 2;
+
+              ctx.strokeStyle = color;
+              ctx.lineWidth = size / 2;
+              ctx.lineCap = "round";
+              ctx.lineJoin = "round";
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(nextX, nextY);
+              ctx.stroke();
+            }
+          }
         }
         ctx.shadowBlur = 0;
 
@@ -1511,7 +1566,10 @@
             speed: 8,
             color: "#ffdd00"
           });
-          playerShotCount += 3;
+          // Only count shots towards shield if shield is not active
+          if (!shieldActive) {
+            playerShotCount += 3;
+          }
         } else {
           // Regular single shot
           lasers.push({
@@ -1522,7 +1580,10 @@
             speed: 8,
             color: "#00f0ff"
           });
-          playerShotCount += 1;
+          // Only count shots towards shield if shield is not active
+          if (!shieldActive) {
+            playerShotCount += 1;
+          }
         }
 
         // Activate shield after every 5 shots
@@ -1617,7 +1678,8 @@
           width: 4,
           height: 20,
           speed: 4,
-          color: "#ff0000"
+          color: "#ff0000",
+          source: "boss"
         });
       }
 
@@ -1630,7 +1692,8 @@
           width: 3,
           height: 15,
           speed: 3,
-          color: "#39ff14"
+          color: "#39ff14",
+          source: "minion"
         });
       }
 
@@ -1660,8 +1723,9 @@
         
         // Collision: Alien Lasers vs Player Ship
         if (rectCollision(al, { x: player.x, y: player.y, width: player.width, height: player.height }) && invulnerableTimer === 0) {
-          // Shield blocks damage for 3 seconds
-          if (shieldActive) {
+          // Shield only blocks boss and minion lasers (not regular aliens)
+          const isBossOrMinionLaser = al.source === "boss" || al.source === "minion";
+          if (shieldActive && isBossOrMinionLaser) {
             createExplosion(player.x + player.width / 2, player.y + player.height / 2, "#ffff00");
             alienLasers.splice(i, 1);
           } else {
