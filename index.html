@@ -1487,15 +1487,20 @@
     }
 
     function spawnBoss() {
+      // Calculate boss difficulty based on current level
+      const currentTrophyLevel = Math.floor(level / 3);
+      const bossHealth = 25 + (currentTrophyLevel - 1) * 15; // Each level: +15 HP
+      const minionSpawnRate = Math.max(80, 120 - (currentTrophyLevel - 1) * 15); // Spawn faster each level
+
       boss = {
         x: canvas.width / 2 - 50,
         y: 60,
         width: 100,
         height: 80,
-        health: 25,
-        maxHealth: 25,
+        health: bossHealth,
+        maxHealth: bossHealth,
         minionSpawnTimer: 0,
-        minionSpawnRate: 120, // Spawn minion every 2 seconds
+        minionSpawnRate: minionSpawnRate,
         speed: 1,
         direction: 1
       };
