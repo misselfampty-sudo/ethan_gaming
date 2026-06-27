@@ -1573,8 +1573,8 @@
             speed: 8,
             color: "#ffdd00"
           });
-          // Only count shots towards shield if shield is not active
-          if (!shieldActive) {
+          // Only count shots towards shield if boss is active and shield is not active
+          if (boss && !shieldActive) {
             playerShotCount += 3;
           }
         } else {
@@ -1587,14 +1587,14 @@
             speed: 8,
             color: "#00f0ff"
           });
-          // Only count shots towards shield if shield is not active
-          if (!shieldActive) {
+          // Only count shots towards shield if boss is active and shield is not active
+          if (boss && !shieldActive) {
             playerShotCount += 1;
           }
         }
 
-        // Activate shield after every 5 shots
-        if (playerShotCount >= 5) {
+        // Activate shield after every 5 shots (only during boss battles)
+        if (boss && playerShotCount >= 5) {
           shieldActive = true;
           shieldTimer = 180; // 3 seconds at 60 FPS
           playerShotCount = 0;
@@ -1626,6 +1626,9 @@
             createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, "#ffdd00");
             boss = null;
             bossMinions = [];
+            shieldActive = false;
+            shieldTimer = 0;
+            playerShotCount = 0;
             level++;
             spawnAliens();
           }
@@ -2069,11 +2072,13 @@
       ctx.fillText(`❤️ ${lives}`, 20, canvas.height - 20);
       ctx.shadowBlur = 0;
 
-      // Draw shield counter (shots until next shield)
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#64ff96";
-      ctx.font = "bold 14px 'Share Tech Mono', monospace";
-      ctx.fillText(`SHIELD: ${5 - playerShotCount}/5`, canvas.width - 20, canvas.height - 20);
+      // Draw shield counter (only during boss battles)
+      if (boss) {
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#64ff96";
+        ctx.font = "bold 14px 'Share Tech Mono', monospace";
+        ctx.fillText(`SHIELD: ${5 - playerShotCount}/5`, canvas.width - 20, canvas.height - 20);
+      }
 
       // Draw Game Over Screen
       if (gameOver) {
