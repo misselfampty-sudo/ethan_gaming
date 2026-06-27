@@ -1940,9 +1940,22 @@
             laserBurstTimer = 300; // 5 seconds at 60 FPS
             particleColor = '#00ff88';
           } else if (pu.type === 'bomb') {
-            // Destroy all aliens on screen
-            aliens = [];
-            score += 500;
+            // Destroy the top row of aliens
+            if (aliens.length > 0) {
+              // Find the top row (minimum y value)
+              let minY = Math.min(...aliens.map(a => a.y));
+              let destroyedCount = 0;
+
+              // Remove all aliens in the top row and award points
+              aliens = aliens.filter(a => {
+                if (a.y === minY) {
+                  score += a.points; // Award points for each destroyed alien
+                  destroyedCount++;
+                  return false; // Remove this alien
+                }
+                return true; // Keep this alien
+              });
+            }
             particleColor = '#ff4444';
           } else if (pu.type === 'extra-life') {
             lives++;
