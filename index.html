@@ -702,30 +702,35 @@
       const input = document.getElementById("new-profile-input");
       if (!input) return;
       const name = input.value.trim();
-      
+
       if (!name) {
         alert("Please enter a name first!");
         return;
       }
-      
+
       if (name.length > 12) {
         alert("Name must be 12 characters or less!");
         return;
       }
-      
+
       if (profiles[name]) {
         alert("This profile already exists! Click their name below to switch.");
         return;
       }
-      
+
+      // Prompt for 4-digit code
+      const code = promptForCode("Set a 4-digit code for " + name + ":");
+      if (code === null) return; // User cancelled
+
       profiles[name] = {
         name: name,
+        code: code,
         highScores: {
           "space-invaders": { score: 0, level: 1, timestamp: Date.now() },
           "retro-snake": { score: 0, level: 1, timestamp: Date.now() }
         }
       };
-      
+
       activeProfileName = name;
       input.value = "";
       saveProfilesToStorage();
@@ -733,6 +738,33 @@
       renderLeaderboard();
       updateDashboardScores();
       loadHighScores();
+    }
+
+    // Prompt user for a 4-digit code
+    function promptForCode(message) {
+      while (true) {
+        const input = prompt(message + " (4 digits, 0000-9999)");
+        if (input === null) return null; // User cancelled
+
+        if (/^\d{4}$/.test(input)) {
+          return input;
+        }
+        alert("Invalid code! Please enter exactly 4 digits (0-9).");
+      }
+    }
+
+    // Check if profile has code, prompt to set if not
+    function ensureProfileHasCode() {
+      const profile = profiles[activeProfileName];
+      if (!profile) return;
+
+      if (!profile.code) {
+        const code = promptForCode("Set your 4-digit code:");
+        if (code !== null) {
+          profile.code = code;
+          saveProfilesToStorage();
+        }
+      }
     }
 
     // Draw the leaderboard ranking table
@@ -840,6 +872,9 @@
 
     // Switch from dashboard to the chosen game
     function launchGame(gameId) {
+      // Ensure profile has a code set
+      ensureProfileHasCode();
+
       dbScreen.style.display = "none";
       gameScreen.style.display = "block";
 
