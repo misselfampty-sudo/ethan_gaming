@@ -1230,6 +1230,9 @@
     let particles = [];
     let shootCooldown = 0;
     let aliens = [];
+    let powerUps = [];
+    let multiShotActive = false;
+    let multiShotTimer = 0;
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
@@ -1371,15 +1374,53 @@
       if (shootCooldown > 0) {
         shootCooldown--;
       }
+      if (multiShotTimer > 0) {
+        multiShotTimer--;
+      } else {
+        multiShotActive = false;
+      }
+
       if (keys.Space && shootCooldown === 0) {
-        lasers.push({
-          x: player.x + player.width / 2 - 2,
-          y: player.y,
-          width: 4,
-          height: 12,
-          speed: 8,
-          color: "#00f0ff"
-        });
+        if (multiShotActive) {
+          // Triple shot: left, center, right
+          const baseX = player.x + player.width / 2;
+          const spread = 15;
+
+          lasers.push({
+            x: baseX - spread - 2,
+            y: player.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00"
+          });
+          lasers.push({
+            x: baseX - 2,
+            y: player.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00"
+          });
+          lasers.push({
+            x: baseX + spread - 2,
+            y: player.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00"
+          });
+        } else {
+          // Regular single shot
+          lasers.push({
+            x: player.x + player.width / 2 - 2,
+            y: player.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#00f0ff"
+          });
+        }
         shootCooldown = 20; // 20 frames cooldown (approx 1/3 second)
       }
 
@@ -1400,10 +1441,22 @@
           if (rectCollision(l, a)) {
             createExplosion(a.x + a.width / 2, a.y + a.height / 2, a.color);
             score += a.points;
-            
+
+            // 20% chance to spawn power-up
+            if (Math.random() < 0.2) {
+              powerUps.push({
+                x: a.x + a.width / 2,
+                y: a.y + a.height / 2,
+                width: 12,
+                height: 12,
+                speed: 2,
+                type: 'multi-shot'
+              });
+            }
+
             aliens.splice(j, 1);
             lasers.splice(i, 1);
-            
+
             // If all aliens are destroyed, progress to next level wave!
             if (aliens.length === 0) {
               level++;
@@ -1446,6 +1499,41 @@
           alienLasers.splice(i, 1);
           saveHighScore("space-invaders", score, level);
           break;
+        }
+      }
+
+      // Update power-ups
+      for (let i = powerUps.length - 1; i >= 0; i--) {
+        let pu = powerUps[i];
+        pu.y += pu.speed;
+
+        // Remove if off-screen
+        if (pu.y > canvas.height) {
+          powerUps.splice(i, 1);
+          continue;
+        }
+
+        // Collision: Power-up vs Player Ship
+        if (rectCollision(pu, { x: player.x, y: player.y, width: player.width, height: player.height })) {
+          if (pu.type === 'multi-shot') {
+            multiShotActive = true;
+            multiShotTimer = 300; // 5 seconds at 60 FPS
+
+            // Particle burst
+            for (let j = 0; j < 15; j++) {
+              particles.push({
+                x: pu.x,
+                y: pu.y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                size: Math.random() * 6 + 3,
+                alpha: 1,
+                decay: 0.03,
+                color: '#ffdd00'
+              });
+            }
+          }
+          powerUps.splice(i, 1);
         }
       }
 
@@ -1538,6 +1626,48 @@
         ctx.fillRect(al.x, al.y, al.width, al.height);
       }
       ctx.shadowBlur = 0;
+
+      // Draw power-ups
+      for (let pu of powerUps) {
+        if (pu.type === 'multi-shot') {
+          const pulse = Math.sin(Date.now() / 150) * 0.5 + 0.5;
+          const size = pu.width * (0.7 + pulse * 0.3);
+
+          ctx.fillStyle = '#ffdd00';
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#ffdd00';
+          ctx.beginPath();
+          ctx.arc(pu.x, pu.y, size / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw star pattern
+          ctx.strokeStyle = '#ffdd00';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+            const x = pu.x + Math.cos(angle) * size;
+            const y = pu.y + Math.sin(angle) * size;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // Draw multi-shot indicator if active
+      if (multiShotActive) {
+        ctx.fillStyle = '#ffdd00';
+        ctx.font = 'bold 16px "Share Tech Mono", monospace';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ffdd00';
+        ctx.textAlign = 'center';
+        const secondsLeft = Math.ceil(multiShotTimer / 60);
+        ctx.fillText(`⭐ MULTI-SHOT ${secondsLeft}s`, canvas.width / 2, canvas.height - 20);
+        ctx.shadowBlur = 0;
+      }
 
       // Draw particles
       for (let p of particles) {
