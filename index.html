@@ -1147,19 +1147,26 @@
             ctx.arc(x, y, size / 2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Draw connecting line to next segment
+            // Draw connecting line to next segment (but not if wrapping around screen)
             if (nextSegment) {
               const nextX = nextSegment.x * GRID_SIZE + GRID_SIZE / 2;
               const nextY = nextSegment.y * GRID_SIZE + GRID_SIZE / 2;
 
-              ctx.strokeStyle = color;
-              ctx.lineWidth = size / 2;
-              ctx.lineCap = "round";
-              ctx.lineJoin = "round";
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(nextX, nextY);
-              ctx.stroke();
+              // Check if segments are adjacent (not wrapping around screen)
+              const distX = Math.abs(nextSegment.x - segment.x);
+              const distY = Math.abs(nextSegment.y - segment.y);
+
+              // Only draw line if segments are close (1 grid unit apart max)
+              if (distX <= 1 && distY <= 1) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = size / 2;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(nextX, nextY);
+                ctx.stroke();
+              }
             }
           }
         }
