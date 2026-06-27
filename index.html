@@ -1244,6 +1244,8 @@
     let multiShotTimer = 0;
     let lives = 3;
     let invulnerableTimer = 0;
+    let boss = null;
+    let bossMinions = [];
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
@@ -1290,39 +1292,76 @@
     // Grid generator for the alien invasion fleet
     function spawnAliens() {
       aliens = [];
-      const cols = 8;
-      const rows = 4;
-      const spacingX = 60; // spacing between alien columns
-      const spacingY = 40; // spacing between alien rows
-      
-      // Calculate startX to center the 8 columns on our 600px canvas
-      // Grid width = (7 cols * 60px spacing) + 30px alien width = 450px
-      // Margin = (600px canvas - 450px grid) / 2 = 75px
-      const startX = 75;
-      const startY = 60; // offset from top so UI doesn't overlap
-      
-      for (let r = 0; r < rows; r++) {
-        // Assign shape based on row index
-        const shapeIndex = r % ALIEN_SHAPES.length;
-        let color = "#00f0ff"; // Row 0: Teal
-        let points = 40;
-        
-        if (r === 1) { color = "#ff007f"; points = 30; }      // Row 1: Pink
-        if (r === 2) { color = "#39ff14"; points = 20; }      // Row 2: Green
-        if (r === 3) { color = "#ffbc00"; points = 10; }      // Row 3: Orange/Yellow
-        
-        for (let c = 0; c < cols; c++) {
-          aliens.push({
-            x: startX + c * spacingX,
-            y: startY + r * spacingY,
-            width: 30, // 10 columns * 3px pixelSize
-            height: 24, // 8 rows * 3px pixelSize
-            shape: ALIEN_SHAPES[shapeIndex],
-            color: color,
-            points: points
-          });
+      bossMinions = [];
+
+      // Boss battle every 3 levels
+      if (level % 3 === 0) {
+        spawnBoss();
+      } else {
+        // Normal alien wave
+        const cols = 8;
+        const rows = 4;
+        const spacingX = 60; // spacing between alien columns
+        const spacingY = 40; // spacing between alien rows
+
+        // Calculate startX to center the 8 columns on our 600px canvas
+        // Grid width = (7 cols * 60px spacing) + 30px alien width = 450px
+        // Margin = (600px canvas - 450px grid) / 2 = 75px
+        const startX = 75;
+        const startY = 60; // offset from top so UI doesn't overlap
+
+        for (let r = 0; r < rows; r++) {
+          // Assign shape based on row index
+          const shapeIndex = r % ALIEN_SHAPES.length;
+          let color = "#00f0ff"; // Row 0: Teal
+          let points = 40;
+
+          if (r === 1) { color = "#ff007f"; points = 30; }      // Row 1: Pink
+          if (r === 2) { color = "#39ff14"; points = 20; }      // Row 2: Green
+          if (r === 3) { color = "#ffbc00"; points = 10; }      // Row 3: Orange/Yellow
+
+          for (let c = 0; c < cols; c++) {
+            aliens.push({
+              x: startX + c * spacingX,
+              y: startY + r * spacingY,
+              width: 30, // 10 columns * 3px pixelSize
+              height: 24, // 8 rows * 3px pixelSize
+              shape: ALIEN_SHAPES[shapeIndex],
+              color: color,
+              points: points
+            });
+          }
         }
       }
+    }
+
+    function spawnBoss() {
+      boss = {
+        x: canvas.width / 2 - 50,
+        y: 60,
+        width: 100,
+        height: 80,
+        health: 25,
+        maxHealth: 25,
+        minionSpawnTimer: 0,
+        minionSpawnRate: 120, // Spawn minion every 2 seconds
+        speed: 1,
+        direction: 1
+      };
+    }
+
+    function spawnBossMinion() {
+      if (!boss) return;
+      bossMinions.push({
+        x: boss.x + boss.width / 2,
+        y: boss.y + boss.height,
+        width: 20,
+        height: 20,
+        speed: 2,
+        direction: Math.random() > 0.5 ? 1 : -1,
+        color: "#39ff14",
+        points: 50
+      });
     }
 
     // Create a particle explosion effect at coordinates (x, y)
@@ -1399,6 +1438,34 @@
         invulnerableTimer--;
       }
 
+      // Update boss
+      if (boss) {
+        boss.x += boss.speed * boss.direction;
+
+        // Bounce boss off edges
+        if (boss.x <= 0 || boss.x + boss.width >= canvas.width) {
+          boss.direction *= -1;
+        }
+
+        // Spawn minions
+        boss.minionSpawnTimer++;
+        if (boss.minionSpawnTimer >= boss.minionSpawnRate) {
+          spawnBossMinion();
+          boss.minionSpawnTimer = 0;
+        }
+      }
+
+      // Update boss minions
+      for (let i = bossMinions.length - 1; i >= 0; i--) {
+        let m = bossMinions[i];
+        m.x += m.speed * m.direction;
+        m.y += 1; // Fall down
+
+        if (m.y > canvas.height) {
+          bossMinions.splice(i, 1);
+        }
+      }
+
       if (keys.Space && shootCooldown === 0) {
         if (multiShotActive) {
           // Triple shot: left, center, right
@@ -1454,36 +1521,92 @@
           continue;
         }
         
-        // Collision: Player Lasers vs Aliens
-        for (let j = aliens.length - 1; j >= 0; j--) {
-          let a = aliens[j];
-          if (rectCollision(l, a)) {
-            createExplosion(a.x + a.width / 2, a.y + a.height / 2, a.color);
-            score += a.points;
+        // Collision: Player Lasers vs Boss
+        if (boss && rectCollision(l, boss)) {
+          createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, "#00ff00");
+          boss.health--;
+          score += 100;
+          lasers.splice(i, 1);
 
-            // 20% chance to spawn power-up
-            if (Math.random() < 0.2) {
-              powerUps.push({
-                x: a.x + a.width / 2,
-                y: a.y + a.height / 2,
-                width: 12,
-                height: 12,
-                speed: 2,
-                type: 'multi-shot'
-              });
-            }
+          if (boss.health <= 0) {
+            // Boss defeated!
+            createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, "#ffdd00");
+            boss = null;
+            bossMinions = [];
+            level++;
+            spawnAliens();
+          }
+          continue;
+        }
 
-            aliens.splice(j, 1);
+        // Collision: Player Lasers vs Boss Minions
+        for (let j = bossMinions.length - 1; j >= 0; j--) {
+          let m = bossMinions[j];
+          if (rectCollision(l, m)) {
+            createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color);
+            score += m.points;
+            bossMinions.splice(j, 1);
             lasers.splice(i, 1);
-
-            // If all aliens are destroyed, progress to next level wave!
-            if (aliens.length === 0) {
-              level++;
-              spawnAliens();
-            }
             break;
           }
         }
+        if (i < lasers.length && lasers[i]) {
+          // Collision: Player Lasers vs Aliens
+          for (let j = aliens.length - 1; j >= 0; j--) {
+            let a = aliens[j];
+            if (rectCollision(l, a)) {
+              createExplosion(a.x + a.width / 2, a.y + a.height / 2, a.color);
+              score += a.points;
+
+              // 20% chance to spawn power-up
+              if (Math.random() < 0.2) {
+                powerUps.push({
+                  x: a.x + a.width / 2,
+                  y: a.y + a.height / 2,
+                  width: 12,
+                  height: 12,
+                  speed: 2,
+                  type: 'multi-shot'
+                });
+              }
+
+              aliens.splice(j, 1);
+              lasers.splice(i, 1);
+
+              // If all aliens are destroyed, progress to next level wave!
+              if (aliens.length === 0) {
+                level++;
+                spawnAliens();
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      // Boss laser shooting (aggressive!)
+      if (boss && Math.random() < 0.03) {
+        alienLasers.push({
+          x: boss.x + boss.width / 2 - 1.5,
+          y: boss.y + boss.height,
+          width: 4,
+          height: 20,
+          speed: 4,
+          color: "#ff0000"
+        });
+      }
+
+      // Minion laser shooting
+      if (bossMinions.length > 0 && Math.random() < 0.015) {
+        const shooter = bossMinions[Math.floor(Math.random() * bossMinions.length)];
+        alienLasers.push({
+          x: shooter.x + shooter.width / 2 - 1.5,
+          y: shooter.y + shooter.height,
+          width: 3,
+          height: 15,
+          speed: 3,
+          color: "#39ff14"
+        });
       }
 
       // Alien shooting frequency (increases with levels!)
@@ -1528,6 +1651,28 @@
             invulnerableTimer = 120; // 2 seconds of invulnerability (120 frames at 60 FPS)
           }
           break;
+        }
+      }
+
+      // Collision: Boss Minions vs Player Ship
+      for (let i = bossMinions.length - 1; i >= 0; i--) {
+        let m = bossMinions[i];
+        if (rectCollision(m, { x: player.x, y: player.y, width: player.width, height: player.height }) && invulnerableTimer === 0) {
+          createExplosion(player.x + player.width / 2, player.y + player.height / 2, player.color);
+          createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color);
+
+          lives--;
+          bossMinions.splice(i, 1);
+
+          if (lives <= 0) {
+            gameOver = true;
+            saveHighScore("space-invaders", score, level);
+          } else {
+            player.x = (canvas.width - 40) / 2;
+            player.y = canvas.height - 40;
+            invulnerableTimer = 120;
+          }
+          continue;
         }
       }
 
@@ -1619,6 +1764,72 @@
       // Draw active aliens
       for (let a of aliens) {
         drawAlienPixelShape(ctx, a.shape, a.x, a.y, 3, a.color);
+      }
+
+      // Draw boss (every 3 levels)
+      if (boss) {
+        // Boss body: green and black pattern with brown eyes
+        ctx.fillStyle = "#1a4d00"; // Dark green
+        ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+
+        // Green highlights
+        ctx.fillStyle = "#39ff14";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#39ff14";
+        ctx.fillRect(boss.x + 10, boss.y + 10, boss.width - 20, boss.height - 30);
+
+        // Brown eyes
+        ctx.fillStyle = "#8b4513";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#8b4513";
+        ctx.beginPath();
+        ctx.arc(boss.x + 30, boss.y + 25, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(boss.x + 70, boss.y + 25, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Black outline
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(boss.x, boss.y, boss.width, boss.height);
+
+        ctx.shadowBlur = 0;
+
+        // Draw boss health bar
+        const healthBarWidth = boss.width;
+        const healthBarHeight = 8;
+        const healthX = boss.x;
+        const healthY = boss.y - 15;
+
+        // Black background
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(healthX, healthY, healthBarWidth, healthBarHeight);
+
+        // Red health bar
+        const healthPercent = boss.health / boss.maxHealth;
+        ctx.fillStyle = healthPercent > 0.5 ? "#00ff00" : healthPercent > 0.25 ? "#ffdd00" : "#ff0000";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.fillRect(healthX, healthY, healthBarWidth * healthPercent, healthBarHeight);
+        ctx.shadowBlur = 0;
+
+        // Health text
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "12px 'Share Tech Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`BOSS ${boss.health}/${boss.maxHealth}`, boss.x + boss.width / 2, boss.y - 20);
+      }
+
+      // Draw boss minions
+      for (let m of bossMinions) {
+        ctx.fillStyle = "#39ff14";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#39ff14";
+        ctx.beginPath();
+        ctx.arc(m.x + m.width / 2, m.y + m.height / 2, m.width / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
 
       // Draw glowing Delta Wing Space Ship
