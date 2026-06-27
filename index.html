@@ -975,7 +975,7 @@
       // Generate random blocks on the map
       function generateBlocks() {
         snakeGame.blocks = [];
-        const numBlocks = Math.floor(COLS * ROWS * 0.08); // 8% of grid as blocks
+        const numBlocks = Math.floor(COLS * ROWS * 0.04); // 4% of grid as blocks (reduced from 8%)
 
         for (let i = 0; i < numBlocks; i++) {
           let blockX, blockY, validPosition = false;
@@ -1054,14 +1054,10 @@
           }
         }
 
-        // Check block collision
+        // Check block collision (blocks act as barriers, prevent movement)
         for (let block of snakeGame.blocks) {
           if (block.x === newHead.x && block.y === newHead.y) {
-            snakeGame.gameOver = true;
-            if (!snakeGame.scoreSaved) {
-              saveHighScore("retro-snake", Math.floor(snakeGame.score / 10), 1);
-              snakeGame.scoreSaved = true;
-            }
+            // Can't move through block - stay in place
             return;
           }
         }
