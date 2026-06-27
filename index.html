@@ -541,16 +541,8 @@
                 <tr>
                   <th>Rank</th>
                   <th>Player</th>
-                  <th colspan="2" style="text-align: center;">Space Invaders</th>
-                  <th colspan="2" style="text-align: center;">Snake</th>
-                </tr>
-                <tr>
-                  <th></th>
-                  <th></th>
-                  <th>Score</th>
-                  <th>Wave</th>
-                  <th>Score</th>
-                  <th>Level</th>
+                  <th style="text-align: center;">Space Invaders</th>
+                  <th style="text-align: center;">Snake</th>
                 </tr>
               </thead>
               <tbody id="leaderboard-body">
@@ -769,14 +761,11 @@
         const row = document.createElement("tr");
         row.className = "leaderboard-row";
         const isActive = item.name === activeProfileName;
-        const highlight = isActive ? 'color: var(--accent-teal); font-weight: bold;' : '';
         row.innerHTML = `
           <td class="rank-cell">#${index + 1}</td>
           <td style="font-weight: bold; color: ${isActive ? 'var(--accent-teal)' : 'inherit'}">${item.name} ${isActive ? '🚀' : ''}</td>
-          <td class="score-cell">${item.siScore}</td>
-          <td class="level-cell">Wave ${item.siLevel}</td>
-          <td class="score-cell">${item.snakeScore}</td>
-          <td class="level-cell">Lvl ${item.snakeLevel}</td>
+          <td class="score-cell" style="text-align: center;">${item.siScore}</td>
+          <td class="score-cell" style="text-align: center;">${item.snakeScore}</td>
         `;
         leaderboardBody.appendChild(row);
       });
