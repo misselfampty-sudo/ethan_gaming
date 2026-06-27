@@ -1352,6 +1352,7 @@
     let shieldTimer = 0;
     let showTrophyScreen = false;
     let trophyLevel = 0;
+    let trophyScreenSpaceReleased = false;
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
@@ -1526,7 +1527,12 @@
     function updateGame() {
       // Handle trophy screen (press SPACE to continue)
       if (showTrophyScreen) {
-        if (keys.Space) {
+        // Track if Space was released (for clean key press detection)
+        if (!keys.Space) {
+          trophyScreenSpaceReleased = true;
+        }
+        // Only continue when Space is pressed AND was previously released
+        if (keys.Space && trophyScreenSpaceReleased) {
           showTrophyScreen = false;
           level++;
           spawnAliens();
@@ -1684,6 +1690,7 @@
             playerShotCount = 0;
             showTrophyScreen = true;
             trophyLevel = Math.floor(level / 3);
+            trophyScreenSpaceReleased = false; // Require Space to be released first
           }
           continue;
         }
