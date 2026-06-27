@@ -969,7 +969,10 @@
         gameOver: false,
         scoreSaved: false,
         particles: [],
-        blocks: []
+        blocks: [],
+        powerUp: null,
+        phaseThrough: false,
+        phaseThroughTimer: 0
       };
 
       // Generate random blocks on the map
@@ -1055,10 +1058,13 @@
         }
 
         // Check block collision (blocks act as barriers, prevent movement)
-        for (let block of snakeGame.blocks) {
-          if (block.x === newHead.x && block.y === newHead.y) {
-            // Can't move through block - stay in place
-            return;
+        // Unless phase-through power-up is active
+        if (!snakeGame.phaseThrough) {
+          for (let block of snakeGame.blocks) {
+            if (block.x === newHead.x && block.y === newHead.y) {
+              // Can't move through block - stay in place
+              return;
+            }
           }
         }
 
@@ -1101,6 +1107,14 @@
             snakeGame.goldenFoodSpawnTime = Date.now(); // Timestamp in milliseconds
           }
 
+          // Spawn phase-through power-up every 10th food (10% chance)
+          if (snakeGame.foodCount % 10 === 0) {
+            snakeGame.powerUp = {
+              x: Math.floor(Math.random() * COLS),
+              y: Math.floor(Math.random() * ROWS)
+            };
+          }
+
           // Spawn regular food
           snakeGame.food = {
             x: Math.floor(Math.random() * COLS),
@@ -1119,8 +1133,36 @@
               color: ['#39ff14', '#00f0ff', '#ff007f'][Math.floor(Math.random() * 3)]
             });
           }
+        } else if (snakeGame.powerUp && newHead.x === snakeGame.powerUp.x && newHead.y === snakeGame.powerUp.y) {
+          // Collect power-up
+          snakeGame.phaseThrough = true;
+          snakeGame.phaseThroughTimer = 300; // 5 seconds at 60 FPS
+          snakeGame.powerUp = null;
+          snakeGame.score += 50;
+
+          // Particle burst with pink color
+          for (let i = 0; i < 12; i++) {
+            snakeGame.particles.push({
+              x: newHead.x * GRID_SIZE + GRID_SIZE / 2,
+              y: newHead.y * GRID_SIZE + GRID_SIZE / 2,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              size: Math.random() * 8 + 4,
+              alpha: 1,
+              color: '#ff00ff'
+            });
+          }
+
+          snakeGame.snake.shift();
         } else {
           snakeGame.snake.shift();
+        }
+
+        // Update phase-through timer
+        if (snakeGame.phaseThroughTimer > 0) {
+          snakeGame.phaseThroughTimer--;
+        } else {
+          snakeGame.phaseThrough = false;
         }
 
         // Check if golden food expired (3 seconds = 3000ms)
@@ -1242,6 +1284,39 @@
         }
         ctx.shadowBlur = 0;
 
+        // Draw phase-through power-up
+        if (snakeGame.powerUp) {
+          const pulse = Math.sin(Date.now() / 150) * 0.5 + 0.5; // Pulsing effect
+          const scale = 0.7 + pulse * 0.3;
+
+          ctx.fillStyle = "#ff00ff";
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = "#ff00ff";
+          ctx.beginPath();
+          ctx.arc(
+            snakeGame.powerUp.x * GRID_SIZE + GRID_SIZE / 2,
+            snakeGame.powerUp.y * GRID_SIZE + GRID_SIZE / 2,
+            (GRID_SIZE / 2 - 2) * scale,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Draw a star/sparkle pattern
+          ctx.strokeStyle = "#ff00ff";
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 4; i++) {
+            const angle = (i * Math.PI) / 2;
+            const x1 = snakeGame.powerUp.x * GRID_SIZE + GRID_SIZE / 2 + Math.cos(angle) * GRID_SIZE * 0.4 * scale;
+            const y1 = snakeGame.powerUp.y * GRID_SIZE + GRID_SIZE / 2 + Math.sin(angle) * GRID_SIZE * 0.4 * scale;
+            ctx.beginPath();
+            ctx.moveTo(snakeGame.powerUp.x * GRID_SIZE + GRID_SIZE / 2, snakeGame.powerUp.y * GRID_SIZE + GRID_SIZE / 2);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+          }
+          ctx.shadowBlur = 0;
+        }
+
         // Draw snake with gradient and smooth curves
         for (let i = 0; i < snakeGame.snake.length; i++) {
           const segment = snakeGame.snake[i];
@@ -1357,6 +1432,17 @@
           ctx.shadowBlur = 10;
           ctx.shadowColor = "#ffdd00";
           ctx.fillText(`🌟 BONUS ${secondsLeft}s`, 20, 70);
+          ctx.shadowBlur = 0;
+        }
+
+        // Draw phase-through power-up timer if active
+        if (snakeGame.phaseThrough) {
+          const secondsLeft = Math.max(0, Math.ceil(snakeGame.phaseThroughTimer / 60));
+          ctx.fillStyle = "#ff00ff";
+          ctx.font = "20px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "#ff00ff";
+          ctx.fillText(`✨ PHASE ${secondsLeft}s`, 20, 100);
           ctx.shadowBlur = 0;
         }
 
