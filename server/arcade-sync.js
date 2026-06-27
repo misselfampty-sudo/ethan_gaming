@@ -96,15 +96,19 @@ const arcadeSync = (() => {
 
     try {
       // 1. Check if server is reachable
+      console.log(`🔍 Health check: ${API_BASE}/health`);
       const healthCheck = await fetch(`${API_BASE}/health`, { method: 'GET' });
       if (!healthCheck.ok) {
-        throw new Error('Server not reachable');
+        throw new Error(`Health check failed: ${healthCheck.status} ${healthCheck.statusText}`);
       }
+      console.log('✓ Server reachable');
 
       // 2. Get current local profiles
       const profiles = getLocalProfiles();
+      console.log(`📤 Sending ${Object.keys(profiles).length} profiles to server`);
 
       // 3. Send to server with client timestamp
+      console.log(`🔍 Posting to: ${API_BASE}/sync`);
       const response = await fetch(`${API_BASE}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,7 +119,8 @@ const arcadeSync = (() => {
       });
 
       if (!response.ok) {
-        throw new Error(`Sync failed: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Sync failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
