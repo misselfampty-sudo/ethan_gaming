@@ -106,7 +106,7 @@ app.post('/api/sync', async (req, res) => {
               score = $3,
               level = $4,
               score_timestamp = $5,
-              version = version + 1
+              version = high_scores.version + 1
           `, [profileId, gameId, clientScore.score, clientScore.level, clientScore.timestamp]);
 
           // Log the sync
