@@ -947,8 +947,43 @@
         score: 0,
         gameOver: false,
         scoreSaved: false,
-        particles: []
+        particles: [],
+        blocks: []
       };
+
+      // Generate random blocks on the map
+      function generateBlocks() {
+        snakeGame.blocks = [];
+        const numBlocks = Math.floor(COLS * ROWS * 0.08); // 8% of grid as blocks
+
+        for (let i = 0; i < numBlocks; i++) {
+          let blockX, blockY, validPosition = false;
+
+          // Make sure block doesn't spawn on snake or food
+          while (!validPosition) {
+            blockX = Math.floor(Math.random() * COLS);
+            blockY = Math.floor(Math.random() * ROWS);
+
+            // Check if position is clear
+            validPosition = true;
+            // Check snake
+            for (let seg of snakeGame.snake) {
+              if (seg.x === blockX && seg.y === blockY) {
+                validPosition = false;
+                break;
+              }
+            }
+            // Check food
+            if (validPosition && snakeGame.food.x === blockX && snakeGame.food.y === blockY) {
+              validPosition = false;
+            }
+          }
+
+          snakeGame.blocks.push({ x: blockX, y: blockY });
+        }
+      }
+
+      generateBlocks();
 
       // Keyboard input
       const handleKeyDown = (e) => {
@@ -989,6 +1024,18 @@
         // Check self collision
         for (let segment of snakeGame.snake) {
           if (segment.x === newHead.x && segment.y === newHead.y) {
+            snakeGame.gameOver = true;
+            if (!snakeGame.scoreSaved) {
+              saveHighScore("retro-snake", Math.floor(snakeGame.score / 10), 1);
+              snakeGame.scoreSaved = true;
+            }
+            return;
+          }
+        }
+
+        // Check block collision
+        for (let block of snakeGame.blocks) {
+          if (block.x === newHead.x && block.y === newHead.y) {
             snakeGame.gameOver = true;
             if (!snakeGame.scoreSaved) {
               saveHighScore("retro-snake", Math.floor(snakeGame.score / 10), 1);
@@ -1146,6 +1193,37 @@
           ctx.stroke();
           ctx.restore();
         }
+
+        // Draw blocks
+        ctx.fillStyle = "#8b4513";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#8b4513";
+        for (let block of snakeGame.blocks) {
+          const blockX = block.x * GRID_SIZE + GRID_SIZE / 2;
+          const blockY = block.y * GRID_SIZE + GRID_SIZE / 2;
+
+          // Draw block as square with pattern
+          ctx.fillRect(
+            block.x * GRID_SIZE + 2,
+            block.y * GRID_SIZE + 2,
+            GRID_SIZE - 4,
+            GRID_SIZE - 4
+          );
+
+          // Draw cross pattern on block
+          ctx.strokeStyle = "#a0522d";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(block.x * GRID_SIZE + 4, block.y * GRID_SIZE + 4);
+          ctx.lineTo(block.x * GRID_SIZE + GRID_SIZE - 4, block.y * GRID_SIZE + GRID_SIZE - 4);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(block.x * GRID_SIZE + GRID_SIZE - 4, block.y * GRID_SIZE + 4);
+          ctx.lineTo(block.x * GRID_SIZE + 4, block.y * GRID_SIZE + GRID_SIZE - 4);
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
 
         // Draw snake with gradient and smooth curves
         for (let i = 0; i < snakeGame.snake.length; i++) {
