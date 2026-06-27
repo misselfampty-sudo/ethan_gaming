@@ -690,10 +690,11 @@
     function selectProfile(name) {
       if (profiles[name]) {
         activeProfileName = name;
+        profileVerified = false; // New profile needs code verification
         saveProfilesToStorage();
         renderProfileUI();
         updateDashboardScores();
-        loadHighScores(); 
+        loadHighScores();
       }
     }
 
@@ -764,6 +765,26 @@
           profile.code = code;
           saveProfilesToStorage();
         }
+      }
+    }
+
+    // Verify profile code before playing
+    function verifyProfileCode() {
+      const profile = profiles[activeProfileName];
+      if (!profile || !profile.code) return true; // No code to verify
+
+      if (profileVerified) return true; // Already verified in this session
+
+      // Prompt for code
+      while (true) {
+        const input = prompt(`Enter your 4-digit code to play:`);
+        if (input === null) return false; // User cancelled
+
+        if (input === profile.code) {
+          profileVerified = true;
+          return true;
+        }
+        alert("Incorrect code! Try again.");
       }
     }
 
@@ -874,6 +895,11 @@
     function launchGame(gameId) {
       // Ensure profile has a code set
       ensureProfileHasCode();
+
+      // Verify code before playing
+      if (!verifyProfileCode()) {
+        return; // User cancelled or entered wrong code
+      }
 
       dbScreen.style.display = "none";
       gameScreen.style.display = "block";
@@ -1353,6 +1379,7 @@
     let showTrophyScreen = false;
     let trophyLevel = 0;
     let trophyScreenSpaceReleased = false;
+    let profileVerified = false;
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
