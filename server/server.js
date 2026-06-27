@@ -15,6 +15,11 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
 const PORT = process.env.PORT || 3000;
 
 // ==========================================
@@ -29,19 +34,33 @@ app.post('/api/sync', async (req, res) => {
       return res.status(400).json({ error: 'Missing profiles or timestamp' });
     }
 
+    console.log('Sync request received from client');
+
     // 1. Get all server profiles
-    const profilesResult = await pool.query('SELECT * FROM profiles');
+    let profilesResult;
+    try {
+      profilesResult = await pool.query('SELECT * FROM profiles');
+    } catch (dbErr) {
+      console.error('Database query error:', dbErr.message);
+      return res.status(500).json({ error: 'Database connection failed', details: dbErr.message });
+    }
     const serverProfiles = {};
     profilesResult.rows.forEach(p => {
       serverProfiles[p.name] = { id: p.id, version: p.version };
     });
 
     // 2. Get all server high scores
-    const scoresResult = await pool.query(`
-      SELECT p.name, h.game_id, h.score, h.level, h.score_timestamp, h.version
-      FROM high_scores h
-      JOIN profiles p ON h.profile_id = p.id
-    `);
+    let scoresResult;
+    try {
+      scoresResult = await pool.query(`
+        SELECT p.name, h.game_id, h.score, h.level, h.score_timestamp, h.version
+        FROM high_scores h
+        JOIN profiles p ON h.profile_id = p.id
+      `);
+    } catch (dbErr) {
+      console.error('Database query error:', dbErr.message);
+      return res.status(500).json({ error: 'Database query failed', details: dbErr.message });
+    }
 
     const serverScores = {};
     scoresResult.rows.forEach(row => {
@@ -139,7 +158,7 @@ app.post('/api/sync', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Sync error:', err);
+    console.error('Sync error:', err.message, err.stack);
     res.status(500).json({ error: 'Sync failed', details: err.message });
   }
 });
@@ -183,9 +202,18 @@ app.get('/api/health', (req, res) => {
 // START SERVER
 // ==========================================
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🎮 Arcade API running on port ${PORT}`);
+  console.log(`   Database: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'arcade'}`);
   console.log(`   Sync endpoint: POST /api/sync`);
   console.log(`   Leaderboard: GET /api/leaderboard`);
   console.log(`   Health: GET /api/health`);
+
+  // Test database connection
+  try {
+    const result = await pool.query('SELECT NOW()');
+    console.log('✅ Database connected:', result.rows[0].now);
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+  }
 });
