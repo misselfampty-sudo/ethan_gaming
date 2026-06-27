@@ -1195,9 +1195,9 @@
         }
 
         // Draw blocks
-        ctx.fillStyle = "#8b4513";
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "#8b4513";
+        ctx.fillStyle = "#39ff14";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#39ff14";
         for (let block of snakeGame.blocks) {
           const blockX = block.x * GRID_SIZE + GRID_SIZE / 2;
           const blockY = block.y * GRID_SIZE + GRID_SIZE / 2;
@@ -1211,7 +1211,7 @@
           );
 
           // Draw cross pattern on block
-          ctx.strokeStyle = "#a0522d";
+          ctx.strokeStyle = "#1a7f00";
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(block.x * GRID_SIZE + 4, block.y * GRID_SIZE + 4);
