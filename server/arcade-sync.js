@@ -13,7 +13,7 @@ const arcadeSync = (() => {
   const API_BASE = '/api'; // Will proxy to http://localhost:3000 via Nginx
   const SYNC_INTERVAL = 30000; // Sync every 30 seconds
   const QUEUE_KEY = 'arcade_sync_queue';
-  const PROFILES_KEY = 'arcade_profiles_synced';
+  const PROFILES_KEY = 'arcade_profiles'; // Match the game's storage key
 
   let syncInProgress = false;
   let lastSyncTime = 0;
@@ -40,17 +40,24 @@ const arcadeSync = (() => {
   function updateScore(profileName, gameId, score, level) {
     const timestamp = Date.now();
 
-    // Update local storage immediately
+    // Update local storage immediately (offline-first)
     let profiles = getLocalProfiles();
     if (!profiles[profileName]) {
       profiles[profileName] = { name: profileName, highScores: {} };
     }
-    profiles[profileName].highScores[gameId] = {
-      score,
-      level,
-      timestamp
-    };
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+
+    const currentScore = profiles[profileName].highScores?.[gameId]?.score || 0;
+
+    // Only update if new score is higher
+    if (score > currentScore) {
+      profiles[profileName].highScores[gameId] = {
+        score,
+        level,
+        timestamp
+      };
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+      console.log(`✏️  Score queued for sync: ${profileName} - ${gameId} = ${score}`);
+    }
 
     // Add to sync queue (for server persistence)
     const queue = getQueue();
@@ -64,8 +71,6 @@ const arcadeSync = (() => {
       queuedAt: Date.now()
     });
     saveQueue(queue);
-
-    console.log(`✏️  Score queued for sync: ${profileName} - ${gameId} = ${score}`);
 
     // Try to sync if online
     if (navigator.onLine) {

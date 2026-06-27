@@ -815,11 +815,20 @@
       const currentPersonalBest = activeProfile.highScores[gameId]?.score || 0;
 
       if (score > currentPersonalBest) {
+        // Update in-memory profile first
+        activeProfile.highScores[gameId] = {
+          score: score,
+          level: level,
+          timestamp: Date.now()
+        };
+
+        // Persist to localStorage
+        saveProfilesToStorage();
+
         // Update via sync manager (handles server persistence + offline queue)
         arcadeSync.updateScore(activeProfileName, gameId, score, level);
 
-        // Sync to local display
-        saveProfilesToStorage();
+        // Update display
         renderLeaderboard();
         updateDashboardScores();
       }
