@@ -122,6 +122,12 @@ const arcadeSync = (() => {
       lastSyncTime = Date.now();
       console.log(`✅ Sync complete at ${new Date(lastSyncTime).toLocaleTimeString()}`);
 
+      // Refresh leaderboard display if available
+      if (window.renderLeaderboard) {
+        window.renderLeaderboard();
+        console.log('🔄 Leaderboard refreshed');
+      }
+
       return result;
 
     } catch (err) {
