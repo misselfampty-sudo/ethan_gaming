@@ -136,13 +136,24 @@ const arcadeSync = (() => {
     let local = getLocalProfiles();
 
     for (const profileName in serverProfiles) {
+      const serverProfile = serverProfiles[profileName];
+
       if (!local[profileName]) {
-        local[profileName] = { name: profileName, highScores: {} };
+        // New profile from server
+        local[profileName] = {
+          name: serverProfile.name,
+          code: serverProfile.code,
+          highScores: {}
+        };
+        console.log(`📥 New profile synced: ${profileName}`);
+      } else if (serverProfile.code && !local[profileName].code) {
+        // Server has code, local doesn't - use server's
+        local[profileName].code = serverProfile.code;
       }
 
       // For each game score
-      for (const gameId in serverProfiles[profileName]) {
-        const serverScore = serverProfiles[profileName][gameId];
+      for (const gameId in serverProfile.highScores) {
+        const serverScore = serverProfile.highScores[gameId];
         const localScore = local[profileName].highScores?.[gameId];
 
         // Server timestamp is newer: use server data

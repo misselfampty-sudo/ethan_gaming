@@ -135,26 +135,45 @@ app.post('/api/sync', async (req, res) => {
     }
 
     // 5. Return current server state to client
+    // First, get all profiles (including ones with no scores)
+    let allProfilesResult;
+    try {
+      allProfilesResult = await pool.query('SELECT name, code FROM profiles ORDER BY name');
+    } catch (dbErr) {
+      console.error('Database query error:', dbErr.message);
+      return res.status(500).json({ error: 'Failed to fetch profiles', details: dbErr.message });
+    }
+
+    const syncedProfiles = {};
+    allProfilesResult.rows.forEach(p => {
+      syncedProfiles[p.name] = {
+        name: p.name,
+        code: p.code,
+        highScores: {}
+      };
+    });
+
+    // Then add all scores
     const updatedScoresResult = await pool.query(`
       SELECT p.name, h.game_id, h.score, h.level, h.score_timestamp
       FROM high_scores h
       JOIN profiles p ON h.profile_id = p.id
     `);
 
-    const syncedScores = {};
     updatedScoresResult.rows.forEach(row => {
-      if (!syncedScores[row.name]) syncedScores[row.name] = {};
-      syncedScores[row.name][row.game_id] = {
-        score: row.score,
-        level: row.level,
-        timestamp: row.score_timestamp
-      };
+      if (syncedProfiles[row.name]) {
+        syncedProfiles[row.name].highScores[row.game_id] = {
+          score: row.score,
+          level: row.level,
+          timestamp: row.score_timestamp
+        };
+      }
     });
 
     res.json({
       success: true,
       synced_at: Date.now(),
-      profiles: syncedScores
+      profiles: syncedProfiles
     });
 
   } catch (err) {
