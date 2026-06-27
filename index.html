@@ -1350,6 +1350,8 @@
     let playerShotCount = 0;
     let shieldActive = false;
     let shieldTimer = 0;
+    let showTrophyScreen = false;
+    let trophyLevel = 0;
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
@@ -1385,6 +1387,8 @@
       playerShotCount = 0;
       shieldActive = false;
       shieldTimer = 0;
+      showTrophyScreen = false;
+      trophyLevel = 0;
 
       // Spawn initial wave of aliens
       spawnAliens();
@@ -1520,6 +1524,16 @@
 
     // Update coordinates and check collisions
     function updateGame() {
+      // Handle trophy screen (press SPACE to continue)
+      if (showTrophyScreen) {
+        if (keys.Space) {
+          showTrophyScreen = false;
+          level++;
+          spawnAliens();
+        }
+        return;
+      }
+
       if (gameOver) return;
 
       // Move player left/right
@@ -1661,15 +1675,15 @@
           lasers.splice(i, 1);
 
           if (boss.health <= 0) {
-            // Boss defeated!
+            // Boss defeated! Show trophy screen
             createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, "#ffdd00");
             boss = null;
             bossMinions = [];
             shieldActive = false;
             shieldTimer = 0;
             playerShotCount = 0;
-            level++;
-            spawnAliens();
+            showTrophyScreen = true;
+            trophyLevel = Math.floor(level / 3);
           }
           continue;
         }
@@ -2117,6 +2131,45 @@
         ctx.fillStyle = "#64ff96";
         ctx.font = "bold 14px 'Share Tech Mono', monospace";
         ctx.fillText(`SHIELD: ${5 - playerShotCount}/5`, canvas.width - 20, canvas.height - 20);
+      }
+
+      // Draw Trophy Screen (after boss defeat)
+      if (showTrophyScreen) {
+        ctx.fillStyle = "rgba(11, 13, 25, 0.9)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Trophy emoji (pulsing)
+        const pulseScale = Math.sin(Date.now() / 300) * 0.1 + 0.9;
+        ctx.font = `bold ${Math.floor(80 * pulseScale)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.fillText("🏆", canvas.width / 2, canvas.height / 2 - 80);
+
+        // Title
+        ctx.fillStyle = "#ffdd00";
+        ctx.font = "bold 40px 'Outfit', sans-serif";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ffdd00";
+        ctx.fillText("LEVEL COMPLETE!", canvas.width / 2, canvas.height / 2 - 10);
+
+        // Message
+        ctx.fillStyle = "#00f0ff";
+        ctx.font = "24px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#00f0ff";
+        ctx.fillText(`You Passed Level ${trophyLevel}!`, canvas.width / 2, canvas.height / 2 + 40);
+
+        // Next level
+        ctx.fillStyle = "#64ff96";
+        ctx.font = "20px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#64ff96";
+        ctx.fillText(`Time to Go Into Level ${trophyLevel + 1}`, canvas.width / 2, canvas.height / 2 + 80);
+
+        // Continue prompt
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "14px 'Share Tech Mono', monospace";
+        ctx.shadowBlur = 0;
+        ctx.fillText("PRESS SPACE TO CONTINUE", canvas.width / 2, canvas.height / 2 + 130);
       }
 
       // Draw Game Over Screen
