@@ -87,6 +87,13 @@ const arcadeSync = (() => {
 
     syncInProgress = true;
 
+    // Update UI status
+    const statusEl = document.getElementById('sync-status');
+    if (statusEl) {
+      statusEl.innerText = '🔄 Syncing...';
+      statusEl.style.color = '#ffdd00';
+    }
+
     try {
       // 1. Check if server is reachable
       const healthCheck = await fetch(`${API_BASE}/health`, { method: 'GET' });
@@ -122,16 +129,30 @@ const arcadeSync = (() => {
       lastSyncTime = Date.now();
       console.log(`✅ Sync complete at ${new Date(lastSyncTime).toLocaleTimeString()}`);
 
+      // Update UI status to success
+      const statusEl = document.getElementById('sync-status');
+      if (statusEl) {
+        statusEl.innerText = '✓ Synced';
+        statusEl.style.color = '#00f0ff';
+      }
+
       // Refresh leaderboard display if available
       if (window.renderLeaderboard) {
         window.renderLeaderboard();
-        console.log('🔄 Leaderboard refreshed');
+        console.log('🔄 Leaderboard refreshed after sync');
       }
 
       return result;
 
     } catch (err) {
       console.warn(`⚠️  Sync failed: ${err.message} — will retry later`);
+
+      // Update UI status to error
+      const statusEl = document.getElementById('sync-status');
+      if (statusEl) {
+        statusEl.innerText = '✗ Sync failed';
+        statusEl.style.color = '#ff4444';
+      }
     } finally {
       syncInProgress = false;
     }

@@ -534,7 +534,12 @@
 
         <!-- Leaderboard Panel -->
         <div class="meta-panel">
-          <h2>🏆 Arcade Leaderboard (Space Invaders)</h2>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>🏆 Arcade Leaderboard (Space Invaders)</h2>
+            <div id="sync-indicator" style="font-size: 0.85rem; color: #00f0ff; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+              <span id="sync-status">✓ Synced</span>
+            </div>
+          </div>
           <div style="max-height: 200px; overflow-y: auto;">
             <table class="leaderboard-table">
               <thead>
@@ -662,6 +667,22 @@
       renderProfileUI();
       renderLeaderboard();
       updateDashboardScores();
+
+      // Force sync on dashboard load
+      if (window.arcadeSync) {
+        console.log('🔄 Syncing profiles on dashboard load...');
+        arcadeSync.syncNow();
+      }
+
+      // Refresh leaderboard every 30 seconds to show other players' scores
+      if (!window.leaderboardRefreshInterval) {
+        window.leaderboardRefreshInterval = setInterval(() => {
+          if (window.renderLeaderboard) {
+            window.renderLeaderboard();
+            console.log('🔄 Auto-refreshed leaderboard');
+          }
+        }, 30000); // Every 30 seconds
+      }
     }
 
     // Render active profile name and profile selector badges
