@@ -1808,6 +1808,15 @@
         ctx.shadowColor = "#00f0ff";
         ctx.textAlign = "left";
         ctx.fillText(`SCORE: ${snakeGame.score}`, 20, 40);
+
+        // Draw coins counter
+        ctx.fillStyle = "#39ff14";
+        ctx.shadowColor = "#39ff14";
+        ctx.fillText(`💰 COINS: ${snakeGame.coins}`, 20, 65);
+
+        // Update the shop display coins in real-time
+        document.getElementById("coins-amount").innerText = snakeGame.coins;
+
         ctx.shadowBlur = 0;
 
         // Draw golden food timer if active
