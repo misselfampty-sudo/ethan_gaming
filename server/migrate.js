@@ -25,7 +25,7 @@ async function migrate() {
       );
     `);
 
-    // Add code column to existing databases that predate this column
+    // Add code column if it doesn't exist (for existing databases)
     await pool.query(`
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS code VARCHAR(10);
     `);
