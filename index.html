@@ -484,6 +484,213 @@
       font-family: 'Share Tech Mono', monospace;
       color: var(--muted-text);
     }
+
+    /* MODE SELECTION & TWO-PLAYER SCREENS */
+    #mode-select-screen {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: var(--bg-color);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mode-select-container {
+      text-align: center;
+      max-width: 600px;
+    }
+
+    .mode-button {
+      background: linear-gradient(135deg, var(--panel-bg), #1a1f3a);
+      border: 2px solid var(--accent-teal);
+      color: var(--text-color);
+      padding: 30px 40px;
+      margin: 20px;
+      border-radius: 16px;
+      font-size: 1.3rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 280px;
+      display: inline-block;
+      transition: all 0.3s ease;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .mode-button:hover {
+      transform: translateY(-5px);
+      border-color: var(--accent-pink);
+      box-shadow: 0 10px 30px rgba(0, 240, 255, 0.2);
+    }
+
+    .mode-button-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    /* TWO-PLAYER SETUP SCREEN */
+    #twoplay-setup-screen {
+      display: none;
+      width: 100%;
+    }
+
+    .twoplay-input-group {
+      background-color: var(--panel-bg);
+      border: 2px solid #232a4e;
+      border-radius: 16px;
+      padding: 30px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .twoplay-input-group h3 {
+      color: var(--accent-teal);
+      margin-top: 0;
+      font-size: 1.2rem;
+    }
+
+    .twoplay-input-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .twoplay-input-row input {
+      flex: 1;
+      min-width: 120px;
+      background-color: #0d1021;
+      border: 1px solid #232a4e;
+      border-radius: 8px;
+      padding: 10px 15px;
+      color: var(--text-color);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    .twoplay-input-row input:focus {
+      outline: none;
+      border-color: var(--accent-pink);
+      box-shadow: 0 0 5px rgba(255, 0, 127, 0.2);
+    }
+
+    .twoplay-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .twoplay-buttons button {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--accent-teal);
+      color: var(--accent-teal);
+      padding: 10px 25px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    .twoplay-buttons button:hover {
+      background-color: var(--accent-teal);
+      color: var(--bg-color);
+    }
+
+    /* SNAKE SHOP */
+    .snake-game-wrapper {
+      width: 100%;
+    }
+
+    #snake-shop {
+      background-color: var(--panel-bg);
+      border: 2px solid #232a4e;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+    }
+
+    #snake-shop.show {
+      display: block;
+    }
+
+    .shop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .shop-header h3 {
+      margin: 0;
+      color: var(--accent-teal);
+      font-size: 1.1rem;
+    }
+
+    .coins-display {
+      background-color: #0d1021;
+      padding: 8px 15px;
+      border-radius: 8px;
+      border: 1px solid #232a4e;
+      color: var(--accent-green);
+      font-weight: bold;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .shop-items {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .shop-item {
+      background-color: #0d1021;
+      border: 1px solid #232a4e;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .shop-item:hover {
+      border-color: var(--accent-pink);
+      box-shadow: 0 0 10px rgba(255, 0, 127, 0.2);
+    }
+
+    .shop-item-name {
+      font-size: 0.8rem;
+      color: var(--text-color);
+      margin: 5px 0;
+      font-weight: 600;
+    }
+
+    .shop-item-price {
+      font-size: 0.75rem;
+      color: var(--accent-green);
+      font-weight: bold;
+    }
+
+    .shop-item-icon {
+      font-size: 1.5rem;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .shop-item.owned .shop-item-price::after {
+      content: " ✓";
+      color: var(--accent-teal);
+    }
   </style>
 </head>
 <body>
@@ -503,8 +710,52 @@
   <div class="neon-dot dot-purple" style="top: 82%; right: 10%; animation-delay: 0.7s;"></div>
   <div class="neon-dot dot-blue" style="top: 90%; left: 50%; animation-delay: 1.2s;"></div>
 
+  <!-- MODE SELECTION SCREEN -->
+  <div id="mode-select-screen">
+    <div class="mode-select-container">
+      <h1 class="arcade-title">Game Mode</h1>
+      <p class="arcade-subtitle">Choose how you want to play</p>
+      <button class="mode-button" onclick="selectGameMode('1p')">
+        <span class="mode-button-icon">1️⃣</span>
+        Single Player
+      </button>
+      <button class="mode-button" onclick="selectGameMode('2p')">
+        <span class="mode-button-icon">2️⃣</span>
+        Two Player
+      </button>
+    </div>
+  </div>
+
   <div class="container">
-    
+
+    <!-- ======================================= -->
+    <!--     TWO-PLAYER SETUP SCREEN             -->
+    <!-- ======================================= -->
+    <div id="twoplay-setup-screen" style="display: none; margin-top: 40px;">
+      <h1 class="arcade-title">Two Player Setup</h1>
+      <p class="arcade-subtitle">Enter player names and select games</p>
+
+      <div class="twoplay-input-group">
+        <h3>Player Names</h3>
+        <div class="twoplay-input-row">
+          <input type="text" id="twoplay-p1-name" class="profile-input" placeholder="Player 1 Name" maxlength="12" value="Player 1">
+          <input type="text" id="twoplay-p2-name" class="profile-input" placeholder="Player 2 Name" maxlength="12" value="Player 2">
+        </div>
+      </div>
+
+      <div class="twoplay-input-group">
+        <h3>Select Game</h3>
+        <div class="twoplay-input-row">
+          <button class="mode-button" style="width: auto; margin: 10px;" onclick="startTwoPlayerGame('space-invaders')">🚀 Space Invaders</button>
+          <button class="mode-button" style="width: auto; margin: 10px;" onclick="startTwoPlayerGame('retro-snake')">🐍 Snake</button>
+        </div>
+      </div>
+
+      <div class="twoplay-buttons">
+        <button onclick="selectGameMode('1p')">◀ Back</button>
+      </div>
+    </div>
+
     <!-- ======================================= -->
     <!--          1. HOME DASHBOARD SCRN         -->
     <!-- ======================================= -->
@@ -512,8 +763,8 @@
       <h1 class="arcade-title">Ethan's Retro Arcade</h1>
       <p class="arcade-subtitle">Select a game to start playing and learning!</p>
 
-      <!-- Profile & Leaderboard Section -->
-      <div class="dashboard-meta-grid">
+      <!-- Profile & Leaderboard Section (hidden in 2-player mode) -->
+      <div class="dashboard-meta-grid" id="dashboard-meta-grid" style="display: grid;">
         <!-- Profile Panel -->
         <div class="meta-panel">
           <h2>👤 Active Player</h2>
@@ -596,8 +847,21 @@
         ◀ Back to Arcade
       </button>
 
-      <div class="arcade-cabinet">
-        <canvas id="gameCanvas" width="600" height="450"></canvas>
+      <div class="snake-game-wrapper">
+        <div class="arcade-cabinet">
+          <canvas id="gameCanvas" width="600" height="450"></canvas>
+        </div>
+
+        <!-- Snake Shop (appears only in Snake game) -->
+        <div id="snake-shop">
+          <div class="shop-header">
+            <h3>🛍️ Snake Skins Shop</h3>
+            <div class="coins-display">💰 <span id="coins-amount">0</span> coins</div>
+          </div>
+          <div class="shop-items" id="shop-items">
+            <!-- Shop items loaded dynamically -->
+          </div>
+        </div>
       </div>
 
       <!-- Live coding learning panel -->
@@ -619,7 +883,13 @@
     // ==========================================
     const dbScreen = document.getElementById("dashboard-screen");
     const gameScreen = document.getElementById("game-screen");
+    const modeSelectScreen = document.getElementById("mode-select-screen");
+    const twoplaySetupScreen = document.getElementById("twoplay-setup-screen");
     let activeGameLoop = null; // Stores our animation frame ID so we can stop it
+
+    // Game Mode State
+    let gameMode = "1p"; // "1p" or "2p"
+    let twoplayerNames = { p1: "Player 1", p2: "Player 2" };
 
     // Profile & Leaderboard State
     let profiles = {};
@@ -919,6 +1189,7 @@
     // Switch from dashboard to the chosen game
     function launchGame(gameId) {
       dbScreen.style.display = "none";
+      twoplaySetupScreen.style.display = "none";
       gameScreen.style.display = "block";
 
       if (gameId === 'space-invaders') {
@@ -935,13 +1206,29 @@
         cancelAnimationFrame(activeGameLoop);
         activeGameLoop = null;
       }
-      
-      // 2. Refresh high scores to display any new record
+
+      // 2. Save snake progress
+      if (snakeGame && typeof saveSnakeProgress === 'function') {
+        saveSnakeProgress();
+      }
+
+      // 3. Hide shop
+      const shopEl = document.getElementById("snake-shop");
+      if (shopEl) {
+        shopEl.classList.remove('show');
+      }
+
+      // 4. Refresh high scores to display any new record
       loadHighScores();
 
-      // 3. Switch screen views
+      // 5. Switch screen views based on game mode
       gameScreen.style.display = "none";
-      dbScreen.style.display = "block";
+
+      if (gameMode === "2p") {
+        twoplaySetupScreen.style.display = "block";
+      } else {
+        dbScreen.style.display = "block";
+      }
     }
 
     // ==========================================
@@ -972,8 +1259,20 @@
         blocks: [],
         powerUp: null,
         phaseThrough: false,
-        phaseThroughTimer: 0
+        phaseThroughTimer: 0,
+        coins: 0,
+        currentSkin: "classic",
+        ownedSkins: ["classic"]
       };
+
+      // Load coins and skins from localStorage
+      const savedCoins = localStorage.getItem("snake_coins");
+      const savedSkins = localStorage.getItem("snake_owned_skins");
+      const savedCurrentSkin = localStorage.getItem("snake_current_skin");
+
+      if (savedCoins) snakeGame.coins = parseInt(savedCoins);
+      if (savedSkins) snakeGame.ownedSkins = JSON.parse(savedSkins);
+      if (savedCurrentSkin) snakeGame.currentSkin = savedCurrentSkin;
 
       // Generate random blocks on the map
       function generateBlocks() {
@@ -1073,6 +1372,7 @@
         // Check golden food collision (priority)
         if (snakeGame.goldenFood && newHead.x === snakeGame.goldenFood.x && newHead.y === snakeGame.goldenFood.y) {
           snakeGame.score += 20; // Double points!
+          snakeGame.coins += 3; // Bonus coins for golden food!
           snakeGame.goldenFood = null;
           snakeGame.goldenFoodSpawnTime = 0;
 
@@ -1092,6 +1392,7 @@
         // Check regular food collision
         else if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
           snakeGame.score += 10;
+          snakeGame.coins += 1; // Earn 1 coin per food
           snakeGame.foodCount++;
 
           // Store old food position for particle burst
@@ -1178,6 +1479,86 @@
           p.alpha -= 0.05;
           return p.alpha > 0;
         });
+      }
+
+      function saveSnakeProgress() {
+        localStorage.setItem("snake_coins", snakeGame.coins);
+        localStorage.setItem("snake_owned_skins", JSON.stringify(snakeGame.ownedSkins));
+        localStorage.setItem("snake_current_skin", snakeGame.currentSkin);
+      }
+
+      function initShop() {
+        const shopEl = document.getElementById("snake-shop");
+        const shopItemsEl = document.getElementById("shop-items");
+
+        const skins = [
+          { id: "classic", name: "Classic", icon: "🐍", price: 0 },
+          { id: "gold", name: "Gold", icon: "🟡", price: 50 },
+          { id: "fire", name: "Fire", icon: "🔥", price: 75 },
+          { id: "ice", name: "Ice", icon: "❄️", price: 60 },
+          { id: "royal", name: "Royal", icon: "👑", price: 100 },
+          { id: "neon", name: "Neon", icon: "⚡", price: 80 }
+        ];
+
+        shopItemsEl.innerHTML = skins.map(skin => {
+          const owned = snakeGame.ownedSkins.includes(skin.id);
+          const selected = snakeGame.currentSkin === skin.id;
+          return `
+            <div class="shop-item ${owned ? 'owned' : ''}" onclick="purchaseSkin('${skin.id}', ${skin.price})">
+              <span class="shop-item-icon">${skin.icon}</span>
+              <div class="shop-item-name">${skin.name}</div>
+              <div class="shop-item-price">${owned ? 'OWNED' : skin.price + ' 💰'}</div>
+              ${selected ? '<div style="color: #00f0ff; font-weight: bold; margin-top: 3px;">✓ Active</div>' : ''}
+            </div>
+          `;
+        }).join('');
+
+        shopEl.classList.add('show');
+        document.getElementById("coins-amount").innerText = snakeGame.coins;
+      }
+
+      function purchaseSkin(skinId, price) {
+        if (snakeGame.ownedSkins.includes(skinId)) {
+          // Switch to this skin
+          snakeGame.currentSkin = skinId;
+          saveSnakeProgress();
+          initShop();
+          return;
+        }
+
+        if (snakeGame.coins >= price) {
+          snakeGame.coins -= price;
+          snakeGame.ownedSkins.push(skinId);
+          snakeGame.currentSkin = skinId;
+          saveSnakeProgress();
+          initShop();
+        } else {
+          alert(`Need ${price - snakeGame.coins} more coins!`);
+        }
+      }
+
+      function getSnakeColor() {
+        const colors = {
+          "classic": "#ff00ff",
+          "gold": "#fbbf24",
+          "fire": "#ff4500",
+          "ice": "#00ddff",
+          "royal": "#d946ef",
+          "neon": "#39ff14"
+        };
+        return colors[snakeGame.currentSkin] || colors["classic"];
+      }
+
+      function adjustBrightness(hexColor, brightness) {
+        const r = parseInt(hexColor.substr(1, 2), 16);
+        const g = parseInt(hexColor.substr(3, 2), 16);
+        const b = parseInt(hexColor.substr(5, 2), 16);
+
+        const newR = Math.min(255, Math.round(r * brightness));
+        const newG = Math.min(255, Math.round(g * brightness));
+        const newB = Math.min(255, Math.round(b * brightness));
+
+        return '#' + [newR, newG, newB].map(x => x.toString(16).padStart(2, '0')).join('');
       }
 
       function drawSnake() {
@@ -1323,11 +1704,10 @@
           const isHead = i === snakeGame.snake.length - 1;
           const nextSegment = i < snakeGame.snake.length - 1 ? snakeGame.snake[i + 1] : null;
 
-          // Color gradient: bright for head, darker towards tail
-          const hue = 300; // Magenta/pink hue
-          const saturation = isHead ? 100 : 70;
-          const lightness = isHead ? 50 : 30 + (i / snakeGame.snake.length) * 20;
-          const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+          // Use current skin color with brightness gradient
+          const baseColor = getSnakeColor();
+          const brightness = isHead ? 1 : 0.6 + (i / snakeGame.snake.length) * 0.4;
+          const color = adjustBrightness(baseColor, brightness);
 
           ctx.fillStyle = color;
           ctx.strokeStyle = color;
@@ -1485,6 +1865,13 @@
         activeGameLoop = requestAnimationFrame(runSnake);
       }
 
+      // Show shop only in single-player mode
+      if (gameMode === "1p") {
+        initShop();
+      } else {
+        document.getElementById("snake-shop").classList.remove('show');
+      }
+
       runSnake();
     }
 
@@ -1567,13 +1954,18 @@
 
     // Setup or reset the Space Invaders game
     function startSpaceInvaders() {
+      let shipColor = getShipColorByLevel(level);
+      if (gameMode === "2p") {
+        shipColor = "#00f0ff"; // Cyan for P1 in 2-player
+      }
+
       player = {
         width: 40,
         height: 24,
         x: (canvas.width - 40) / 2,
         y: canvas.height - 40,
         speed: 6,
-        color: "#38bdf8"
+        color: shipColor
       };
 
       keys = {
@@ -1667,6 +2059,15 @@
       }
     }
 
+    function getShipColorByLevel(baseLevel) {
+      // Return ship color based on level
+      if (baseLevel <= 2) return "#38bdf8"; // Cyan (levels 1-2)
+      if (baseLevel <= 4) return "#ec4899"; // Pink (levels 3-4)
+      if (baseLevel <= 6) return "#fbbf24"; // Amber (levels 5-6)
+      if (baseLevel <= 8) return "#10b981"; // Emerald (levels 7-8)
+      return "#d946ef"; // Fuchsia (level 9+)
+    }
+
     function spawnBoss() {
       // Calculate boss difficulty based on current level
       const currentTrophyLevel = Math.floor(level / 3);
@@ -1683,7 +2084,8 @@
         minionSpawnTimer: 0,
         minionSpawnRate: minionSpawnRate,
         speed: 1,
-        direction: 1
+        direction: 1,
+        level: currentTrophyLevel // Add level for design variations
       };
     }
 
@@ -2216,7 +2618,7 @@
       ctx.fillStyle = color;
       ctx.shadowBlur = 6;
       ctx.shadowColor = color;
-      
+
       for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
           if (shape[r][c] === 1) {
@@ -2225,6 +2627,70 @@
         }
       }
       ctx.shadowBlur = 0;
+    }
+
+    function drawBossVariant(ctx, boss) {
+      const level = boss.level || 1;
+      let colors = {};
+
+      if (level === 1) {
+        colors = { body: "#1a4d00", accent: "#39ff14", eye: "#8b4513" }; // Green & brown (original)
+      } else if (level === 2) {
+        colors = { body: "#1a1a4d", accent: "#0088ff", eye: "#ffcc00" }; // Blue & gold
+      } else if (level === 3) {
+        colors = { body: "#4d001a", accent: "#ff0066", eye: "#ff8800" }; // Red/Pink & orange
+      } else {
+        colors = { body: "#2d1a4d", accent: "#dd00ff", eye: "#00ffff" }; // Purple & cyan (level 4+)
+      }
+
+      // Boss body
+      ctx.fillStyle = colors.body;
+      ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+
+      // Accent highlights
+      ctx.fillStyle = colors.accent;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = colors.accent;
+      ctx.fillRect(boss.x + 10, boss.y + 10, boss.width - 20, boss.height - 30);
+
+      // Eyes
+      ctx.fillStyle = colors.eye;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = colors.eye;
+      ctx.beginPath();
+      ctx.arc(boss.x + 30, boss.y + 25, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(boss.x + 70, boss.y + 25, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Black outline
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boss.x, boss.y, boss.width, boss.height);
+      ctx.shadowBlur = 0;
+
+      // Draw boss health bar
+      const healthBarWidth = boss.width;
+      const healthBarHeight = 8;
+      const healthX = boss.x;
+      const healthY = boss.y - 15;
+
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(healthX, healthY, healthBarWidth, healthBarHeight);
+
+      const healthPercent = boss.health / boss.maxHealth;
+      ctx.fillStyle = healthPercent > 0.5 ? colors.accent : healthPercent > 0.25 ? "#ffdd00" : "#ff0000";
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.fillRect(healthX, healthY, healthBarWidth * healthPercent, healthBarHeight);
+      ctx.shadowBlur = 0;
+
+      // Health text
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "12px 'Share Tech Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`BOSS ${boss.health}/${boss.maxHealth}`, boss.x + boss.width / 2, boss.y - 20);
     }
 
     // Render elements
@@ -2256,57 +2722,7 @@
 
       // Draw boss (every 3 levels)
       if (boss) {
-        // Boss body: green and black pattern with brown eyes
-        ctx.fillStyle = "#1a4d00"; // Dark green
-        ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
-
-        // Green highlights
-        ctx.fillStyle = "#39ff14";
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#39ff14";
-        ctx.fillRect(boss.x + 10, boss.y + 10, boss.width - 20, boss.height - 30);
-
-        // Brown eyes
-        ctx.fillStyle = "#8b4513";
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "#8b4513";
-        ctx.beginPath();
-        ctx.arc(boss.x + 30, boss.y + 25, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(boss.x + 70, boss.y + 25, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Black outline
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(boss.x, boss.y, boss.width, boss.height);
-
-        ctx.shadowBlur = 0;
-
-        // Draw boss health bar
-        const healthBarWidth = boss.width;
-        const healthBarHeight = 8;
-        const healthX = boss.x;
-        const healthY = boss.y - 15;
-
-        // Black background
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(healthX, healthY, healthBarWidth, healthBarHeight);
-
-        // Red health bar
-        const healthPercent = boss.health / boss.maxHealth;
-        ctx.fillStyle = healthPercent > 0.5 ? "#00ff00" : healthPercent > 0.25 ? "#ffdd00" : "#ff0000";
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = ctx.fillStyle;
-        ctx.fillRect(healthX, healthY, healthBarWidth * healthPercent, healthBarHeight);
-        ctx.shadowBlur = 0;
-
-        // Health text
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "12px 'Share Tech Mono', monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(`BOSS ${boss.health}/${boss.maxHealth}`, boss.x + boss.width / 2, boss.y - 20);
+        drawBossVariant(ctx, boss);
       }
 
       // Draw boss minions
@@ -2567,8 +2983,51 @@
       activeGameLoop = requestAnimationFrame(runGame);
     }
 
-    // Initial score load on page open
-    loadProfiles();
+    // ==========================================
+    //          GAME MODE SELECTION
+    // ==========================================
+    function selectGameMode(mode) {
+      gameMode = mode;
+      modeSelectScreen.style.display = "none";
+
+      // Show/hide leaderboard based on mode
+      const metaGrid = document.getElementById("dashboard-meta-grid");
+      if (metaGrid) {
+        if (mode === "1p") {
+          metaGrid.style.display = "grid";
+        } else {
+          metaGrid.style.display = "none";
+        }
+      }
+
+      if (mode === "1p") {
+        twoplaySetupScreen.style.display = "none";
+        dbScreen.style.display = "block";
+      } else if (mode === "2p") {
+        dbScreen.style.display = "none";
+        twoplaySetupScreen.style.display = "block";
+      }
+    }
+
+    function startTwoPlayerGame(gameId) {
+      if (gameMode === "2p") {
+        twoplayerNames.p1 = document.getElementById("twoplay-p1-name").value || "Player 1";
+        twoplayerNames.p2 = document.getElementById("twoplay-p2-name").value || "Player 2";
+      }
+      launchGame(gameId);
+    }
+
+    // Initial: show mode select screen
+    function initGame() {
+      modeSelectScreen.style.display = "flex";
+      dbScreen.style.display = "none";
+      twoplaySetupScreen.style.display = "none";
+      gameScreen.style.display = "none";
+      loadProfiles();
+    }
+
+    // Initial game load on page open
+    initGame();
   </script>
   <script src="/arcade-sync.js"></script>
   <script>
