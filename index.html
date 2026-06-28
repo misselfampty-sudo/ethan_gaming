@@ -1937,8 +1937,7 @@
     let rapidFireTimer = 0;
     let laserBurstActive = false;
     let laserBurstTimer = 0;
-    let bombWeaponActive = false;
-    let bombWeaponTimer = 0;
+    let bombCount = 0; // Number of bombs available to fire
     let shieldBoostTimer = 0;
     let lives = 3;
     let invulnerableTimer = 0;
@@ -1990,8 +1989,7 @@
       rapidFireTimer = 0;
       laserBurstActive = false;
       laserBurstTimer = 0;
-      bombWeaponActive = false;
-      bombWeaponTimer = 0;
+      bombCount = 0;
       shieldBoostTimer = 0;
       boss = null;
       bossMinions = [];
@@ -2199,11 +2197,6 @@
       } else {
         laserBurstActive = false;
       }
-      if (bombWeaponTimer > 0) {
-        bombWeaponTimer--;
-      } else {
-        bombWeaponActive = false;
-      }
       if (shieldBoostTimer > 0) {
         shieldBoostTimer--;
       }
@@ -2247,7 +2240,7 @@
       }
 
       if (keys.Space && shootCooldown === 0) {
-        if (bombWeaponActive) {
+        if (bombCount > 0) {
           // Bomb weapon: column-destroying laser
           lasers.push({
             x: player.x + player.width / 2 - 2,
@@ -2258,6 +2251,7 @@
             color: "#ff4444",
             type: "bomb"
           });
+          bombCount--; // Use one bomb
           if (boss && !shieldActive) {
             playerShotCount += 1;
           }
@@ -2565,9 +2559,8 @@
             laserBurstTimer = 300; // 5 seconds at 60 FPS
             particleColor = '#00ff88';
           } else if (pu.type === 'bomb') {
-            // Activate bomb weapon (shoots column-destroying lasers)
-            bombWeaponActive = true;
-            bombWeaponTimer = 300; // 5 seconds at 60 FPS
+            // Add bomb to inventory
+            bombCount += 1;
             particleColor = '#ff4444';
           } else if (pu.type === 'extra-life') {
             lives++;
@@ -2852,8 +2845,8 @@
       if (laserBurstActive) {
         powerUpIndicators.push({ color: '#00ff88', text: `💚 BURST ${Math.ceil(laserBurstTimer / 60)}s` });
       }
-      if (bombWeaponActive) {
-        powerUpIndicators.push({ color: '#ff4444', text: `💣 BOMB ${Math.ceil(bombWeaponTimer / 60)}s` });
+      if (bombCount > 0) {
+        powerUpIndicators.push({ color: '#ff4444', text: `💣 BOMBS x${bombCount}` });
       }
       if (shieldBoostTimer > 0) {
         powerUpIndicators.push({ color: '#64ff96', text: `🛡️ SHIELD+ ${Math.ceil(shieldBoostTimer / 60)}s` });
