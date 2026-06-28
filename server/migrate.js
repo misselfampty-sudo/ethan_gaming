@@ -18,10 +18,16 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS profiles (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(12) UNIQUE NOT NULL,
+        code VARCHAR(10),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         version INT DEFAULT 1
       );
+    `);
+
+    // Add code column to existing databases that predate this column
+    await pool.query(`
+      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS code VARCHAR(10);
     `);
 
     // High scores table (last-write-wins with timestamps)
