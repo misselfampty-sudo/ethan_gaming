@@ -2564,7 +2564,7 @@
           continue;
         }
         
-        // Collision: Alien Lasers vs Player Ship
+        // Collision: Alien Lasers vs Player 1 Ship
         if (rectCollision(al, { x: player.x, y: player.y, width: player.width, height: player.height }) && invulnerableTimer === 0) {
           // Shield only blocks boss and minion lasers (not regular aliens)
           const isBossOrMinionLaser = al.source === "boss" || al.source === "minion";
@@ -2583,9 +2583,35 @@
               saveHighScore("space-invaders", score, level);
             } else {
               // Reset player position and give temporary invulnerability
-              player.x = (canvas.width - 40) / 2;
+              player.x = gameMode === "2p" ? 80 : (canvas.width - 40) / 2;
               player.y = canvas.height - 40;
               invulnerableTimer = 120; // 2 seconds of invulnerability (120 frames at 60 FPS)
+            }
+          }
+          break;
+        }
+
+        // Collision: Alien Lasers vs Player 2 Ship (in 2-player mode)
+        if (player2 && rectCollision(al, { x: player2.x, y: player2.y, width: player2.width, height: player2.height }) && invulnerableTimer === 0) {
+          const isBossOrMinionLaser = al.source === "boss" || al.source === "minion";
+          if (shieldActive && isBossOrMinionLaser) {
+            createExplosion(player2.x + player2.width / 2, player2.y + player2.height / 2, "#ffff00");
+            alienLasers.splice(i, 1);
+          } else {
+            createExplosion(player2.x + player2.width / 2, player2.y + player2.height / 2, player2.color);
+            createExplosion(player2.x + player2.width / 2, player2.y + player2.height / 2, "#ff007f");
+
+            lives--;
+            alienLasers.splice(i, 1);
+
+            if (lives <= 0) {
+              gameOver = true;
+              saveHighScore("space-invaders", score, level);
+            } else {
+              // Reset player 2 position and give temporary invulnerability
+              player2.x = canvas.width - 120;
+              player2.y = canvas.height - 40;
+              invulnerableTimer = 120;
             }
           }
           break;
@@ -2865,6 +2891,19 @@
         ctx.lineTo(player2.x, player2.y + player2.height);
         ctx.closePath();
         ctx.fill();
+
+        // Draw shield around Player 2 (shared shield in 2-player mode)
+        if (shieldActive) {
+          const pulseAlpha = Math.sin(Date.now() / 100) * 0.5 + 0.5;
+          ctx.strokeStyle = `rgba(100, 255, 150, ${0.3 + pulseAlpha * 0.4})`;
+          ctx.lineWidth = 3;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = "#64ff96";
+
+          ctx.beginPath();
+          ctx.arc(player2.x + player2.width / 2, player2.y + player2.height / 2, 50, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
 
       // Reset shadows
