@@ -1232,6 +1232,93 @@
     }
 
     // ==========================================
+    //            SNAKE SHOP FUNCTIONS (GLOBAL)
+    // ==========================================
+    function initShop() {
+      if (!snakeGame) return;
+      const shopEl = document.getElementById("snake-shop");
+      const shopItemsEl = document.getElementById("shop-items");
+
+      const skins = [
+        { id: "classic", name: "Classic", icon: "🐍", price: 0 },
+        { id: "gold", name: "Gold", icon: "🟡", price: 50 },
+        { id: "fire", name: "Fire", icon: "🔥", price: 75 },
+        { id: "ice", name: "Ice", icon: "❄️", price: 60 },
+        { id: "royal", name: "Royal", icon: "👑", price: 100 },
+        { id: "neon", name: "Neon", icon: "⚡", price: 80 }
+      ];
+
+      shopItemsEl.innerHTML = skins.map(skin => {
+        const owned = snakeGame.ownedSkins.includes(skin.id);
+        const selected = snakeGame.currentSkin === skin.id;
+        return `
+          <div class="shop-item ${owned ? 'owned' : ''}" onclick="purchaseSkin('${skin.id}', ${skin.price})">
+            <span class="shop-item-icon">${skin.icon}</span>
+            <div class="shop-item-name">${skin.name}</div>
+            <div class="shop-item-price">${owned ? 'OWNED' : skin.price + ' 💰'}</div>
+            ${selected ? '<div style="color: #00f0ff; font-weight: bold; margin-top: 3px;">✓ Active</div>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      shopEl.classList.add('show');
+      document.getElementById("coins-amount").innerText = snakeGame.coins;
+    }
+
+    function purchaseSkin(skinId, price) {
+      if (!snakeGame) return;
+      if (snakeGame.ownedSkins.includes(skinId)) {
+        // Switch to this skin
+        snakeGame.currentSkin = skinId;
+        saveSnakeProgress();
+        initShop();
+        return;
+      }
+
+      if (snakeGame.coins >= price) {
+        snakeGame.coins -= price;
+        snakeGame.ownedSkins.push(skinId);
+        snakeGame.currentSkin = skinId;
+        saveSnakeProgress();
+        initShop();
+      } else {
+        alert(`Need ${price - snakeGame.coins} more coins!`);
+      }
+    }
+
+    function saveSnakeProgress() {
+      if (!snakeGame) return;
+      localStorage.setItem("snake_coins", snakeGame.coins);
+      localStorage.setItem("snake_owned_skins", JSON.stringify(snakeGame.ownedSkins));
+      localStorage.setItem("snake_current_skin", snakeGame.currentSkin);
+    }
+
+    function adjustBrightness(hexColor, brightness) {
+      const r = parseInt(hexColor.substr(1, 2), 16);
+      const g = parseInt(hexColor.substr(3, 2), 16);
+      const b = parseInt(hexColor.substr(5, 2), 16);
+
+      const newR = Math.min(255, Math.round(r * brightness));
+      const newG = Math.min(255, Math.round(g * brightness));
+      const newB = Math.min(255, Math.round(b * brightness));
+
+      return '#' + [newR, newG, newB].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getSnakeColor() {
+      if (!snakeGame) return "#ff00ff";
+      const colors = {
+        "classic": "#ff00ff",
+        "gold": "#fbbf24",
+        "fire": "#ff4500",
+        "ice": "#00ddff",
+        "royal": "#d946ef",
+        "neon": "#39ff14"
+      };
+      return colors[snakeGame.currentSkin] || colors["classic"];
+    }
+
+    // ==========================================
     //            RETRO SNAKE GAME CODE
     // ==========================================
     let snakeGame = null;
@@ -1479,86 +1566,6 @@
           p.alpha -= 0.05;
           return p.alpha > 0;
         });
-      }
-
-      function saveSnakeProgress() {
-        localStorage.setItem("snake_coins", snakeGame.coins);
-        localStorage.setItem("snake_owned_skins", JSON.stringify(snakeGame.ownedSkins));
-        localStorage.setItem("snake_current_skin", snakeGame.currentSkin);
-      }
-
-      function initShop() {
-        const shopEl = document.getElementById("snake-shop");
-        const shopItemsEl = document.getElementById("shop-items");
-
-        const skins = [
-          { id: "classic", name: "Classic", icon: "🐍", price: 0 },
-          { id: "gold", name: "Gold", icon: "🟡", price: 50 },
-          { id: "fire", name: "Fire", icon: "🔥", price: 75 },
-          { id: "ice", name: "Ice", icon: "❄️", price: 60 },
-          { id: "royal", name: "Royal", icon: "👑", price: 100 },
-          { id: "neon", name: "Neon", icon: "⚡", price: 80 }
-        ];
-
-        shopItemsEl.innerHTML = skins.map(skin => {
-          const owned = snakeGame.ownedSkins.includes(skin.id);
-          const selected = snakeGame.currentSkin === skin.id;
-          return `
-            <div class="shop-item ${owned ? 'owned' : ''}" onclick="purchaseSkin('${skin.id}', ${skin.price})">
-              <span class="shop-item-icon">${skin.icon}</span>
-              <div class="shop-item-name">${skin.name}</div>
-              <div class="shop-item-price">${owned ? 'OWNED' : skin.price + ' 💰'}</div>
-              ${selected ? '<div style="color: #00f0ff; font-weight: bold; margin-top: 3px;">✓ Active</div>' : ''}
-            </div>
-          `;
-        }).join('');
-
-        shopEl.classList.add('show');
-        document.getElementById("coins-amount").innerText = snakeGame.coins;
-      }
-
-      function purchaseSkin(skinId, price) {
-        if (snakeGame.ownedSkins.includes(skinId)) {
-          // Switch to this skin
-          snakeGame.currentSkin = skinId;
-          saveSnakeProgress();
-          initShop();
-          return;
-        }
-
-        if (snakeGame.coins >= price) {
-          snakeGame.coins -= price;
-          snakeGame.ownedSkins.push(skinId);
-          snakeGame.currentSkin = skinId;
-          saveSnakeProgress();
-          initShop();
-        } else {
-          alert(`Need ${price - snakeGame.coins} more coins!`);
-        }
-      }
-
-      function getSnakeColor() {
-        const colors = {
-          "classic": "#ff00ff",
-          "gold": "#fbbf24",
-          "fire": "#ff4500",
-          "ice": "#00ddff",
-          "royal": "#d946ef",
-          "neon": "#39ff14"
-        };
-        return colors[snakeGame.currentSkin] || colors["classic"];
-      }
-
-      function adjustBrightness(hexColor, brightness) {
-        const r = parseInt(hexColor.substr(1, 2), 16);
-        const g = parseInt(hexColor.substr(3, 2), 16);
-        const b = parseInt(hexColor.substr(5, 2), 16);
-
-        const newR = Math.min(255, Math.round(r * brightness));
-        const newG = Math.min(255, Math.round(g * brightness));
-        const newB = Math.min(255, Math.round(b * brightness));
-
-        return '#' + [newR, newG, newB].map(x => x.toString(16).padStart(2, '0')).join('');
       }
 
       function drawSnake() {
