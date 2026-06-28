@@ -1921,8 +1921,11 @@
 
     // Game variables
     let player = {};
+    let player2 = null; // Second player in 2-player mode
     let keys = {};
+    let keys2 = {}; // Second player keys (WASD)
     let score = 0;
+    let score2 = 0; // Second player score
     let level = 1;
     let gameOver = false;
     let lasers = [];
@@ -1961,11 +1964,25 @@
       player = {
         width: 40,
         height: 24,
-        x: (canvas.width - 40) / 2,
+        x: gameMode === "2p" ? 80 : (canvas.width - 40) / 2,
         y: canvas.height - 40,
         speed: 6,
         color: shipColor
       };
+
+      // Initialize second player in 2-player mode
+      if (gameMode === "2p") {
+        player2 = {
+          width: 40,
+          height: 24,
+          x: canvas.width - 120,
+          y: canvas.height - 40,
+          speed: 6,
+          color: "#ff007f" // Pink for P2
+        };
+      } else {
+        player2 = null;
+      }
 
       keys = {
         ArrowLeft: false,
@@ -1973,7 +1990,14 @@
         Space: false
       };
 
+      keys2 = {
+        KeyA: false,
+        KeyD: false,
+        KeyW: false
+      };
+
       score = 0;
+      score2 = 0;
       level = 1;
       gameOver = false;
       lives = 3;
@@ -2128,6 +2152,7 @@
 
     // Capture Key presses
     window.addEventListener("keydown", (event) => {
+      // Player 1 controls (Arrow keys)
       if (event.code === "ArrowLeft") keys.ArrowLeft = true;
       if (event.code === "ArrowRight") keys.ArrowRight = true;
       if (event.code === "Space") {
@@ -2138,12 +2163,25 @@
         }
         event.preventDefault();
       }
+
+      // Player 2 controls (WASD) - only in 2-player mode
+      if (gameMode === "2p") {
+        if (event.code === "KeyA") keys2.KeyA = true;
+        if (event.code === "KeyD") keys2.KeyD = true;
+        if (event.code === "KeyW") keys2.KeyW = true;
+      }
     });
 
     window.addEventListener("keyup", (event) => {
+      // Player 1 controls
       if (event.code === "ArrowLeft") keys.ArrowLeft = false;
       if (event.code === "ArrowRight") keys.ArrowRight = false;
       if (event.code === "Space") keys.Space = false;
+
+      // Player 2 controls
+      if (event.code === "KeyA") keys2.KeyA = false;
+      if (event.code === "KeyD") keys2.KeyD = false;
+      if (event.code === "KeyW") keys2.KeyW = false;
     });
 
     // Update coordinates and check collisions
@@ -2166,7 +2204,7 @@
 
       if (gameOver) return;
 
-      // Move player left/right
+      // Move player 1 left/right
       if (keys.ArrowLeft) {
         player.x -= player.speed;
         if (player.x < 0) player.x = 0;
@@ -2175,6 +2213,20 @@
         player.x += player.speed;
         if (player.x + player.width > canvas.width) {
           player.x = canvas.width - player.width;
+        }
+      }
+
+      // Move player 2 left/right (WASD in 2-player mode)
+      if (player2) {
+        if (keys2.KeyA) {
+          player2.x -= player2.speed;
+          if (player2.x < 0) player2.x = 0;
+        }
+        if (keys2.KeyD) {
+          player2.x += player2.speed;
+          if (player2.x + player2.width > canvas.width) {
+            player2.x = canvas.width - player2.width;
+          }
         }
       }
 
@@ -2332,6 +2384,21 @@
         shootCooldown = cooldown;
       }
 
+      // Player 2 shooting (W key in 2-player mode)
+      if (player2 && keys2.KeyW && shootCooldown === 0) {
+        // Player 2 always fires single shots
+        lasers.push({
+          x: player2.x + player2.width / 2 - 2,
+          y: player2.y,
+          width: 4,
+          height: 12,
+          speed: 8,
+          color: "#ff007f",
+          playerNum: 2
+        });
+        shootCooldown = 20;
+      }
+
       // Update player lasers
       for (let i = lasers.length - 1; i >= 0; i--) {
         let l = lasers[i];
@@ -2347,7 +2414,11 @@
         if (boss && rectCollision(l, boss)) {
           createExplosion(boss.x + boss.width / 2, boss.y + boss.height / 2, "#00ff00");
           boss.health--;
-          score += 100;
+          if (l.playerNum === 2) {
+            score2 += 100;
+          } else {
+            score += 100;
+          }
           lasers.splice(i, 1);
 
           if (boss.health <= 0) {
@@ -2370,7 +2441,11 @@
           let m = bossMinions[j];
           if (rectCollision(l, m)) {
             createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color);
-            score += m.points;
+            if (l.playerNum === 2) {
+              score2 += m.points;
+            } else {
+              score += m.points;
+            }
             bossMinions.splice(j, 1);
             lasers.splice(i, 1);
             break;
@@ -2390,7 +2465,11 @@
                 for (let k = aliens.length - 1; k >= 0; k--) {
                   if (aliens[k].x === targetX) {
                     createExplosion(aliens[k].x + aliens[k].width / 2, aliens[k].y + aliens[k].height / 2, aliens[k].color);
-                    score += aliens[k].points;
+                    if (l.playerNum === 2) {
+                      score2 += aliens[k].points;
+                    } else {
+                      score += aliens[k].points;
+                    }
                     destroyed++;
                     aliens.splice(k, 1);
                   }
@@ -2398,7 +2477,11 @@
               } else {
                 // Regular laser: destroy single alien
                 createExplosion(a.x + a.width / 2, a.y + a.height / 2, a.color);
-                score += a.points;
+                if (l.playerNum === 2) {
+                  score2 += a.points;
+                } else {
+                  score += a.points;
+                }
 
                 // 20% chance to spawn power-up
                 if (Math.random() < 0.2) {
@@ -2768,6 +2851,22 @@
         ctx.fillText("SHIELD " + shieldSeconds, player.x + player.width / 2, player.y - 15);
       }
 
+      // Draw Player 2 (Barrel) in 2-player mode
+      if (player2) {
+        ctx.fillStyle = player2.color;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = player2.color;
+
+        ctx.beginPath();
+        ctx.moveTo(player2.x + player2.width / 2, player2.y);
+        ctx.lineTo(player2.x + player2.width, player2.y + player2.height);
+        ctx.lineTo(player2.x + player2.width * 0.8, player2.y + player2.height * 0.8);
+        ctx.lineTo(player2.x + player2.width * 0.2, player2.y + player2.height * 0.8);
+        ctx.lineTo(player2.x, player2.y + player2.height);
+        ctx.closePath();
+        ctx.fill();
+      }
+
       // Reset shadows
       ctx.shadowBlur = 0;
 
@@ -2876,15 +2975,32 @@
       // Draw HUD (Heads-Up Display)
       ctx.fillStyle = "#ffffff";
       ctx.font = "16px 'Share Tech Mono', monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(`SCORE: ${score}`, 20, 30);
 
-      ctx.textAlign = "center";
-      ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
+      if (gameMode === "2p") {
+        // Two-player HUD
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#00f0ff";
+        ctx.fillText(`P1 ${twoplayerNames.p1}: ${score}`, 20, 30);
 
-      const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
-      ctx.textAlign = "right";
-      ctx.fillText(`MY BEST: ${Math.max(activeBest, score)}`, canvas.width - 20, 30);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ff007f";
+        ctx.fillText(`P2 ${twoplayerNames.p2}: ${score2}`, canvas.width - 20, 30);
+
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
+      } else {
+        // Single-player HUD
+        ctx.textAlign = "left";
+        ctx.fillText(`SCORE: ${score}`, 20, 30);
+
+        ctx.textAlign = "center";
+        ctx.fillText(`WAVE: ${level}`, canvas.width / 2, 30);
+
+        const activeBest = profiles[activeProfileName]?.highScores?.["space-invaders"]?.score || 0;
+        ctx.textAlign = "right";
+        ctx.fillText(`MY BEST: ${Math.max(activeBest, score)}`, canvas.width - 20, 30);
+      }
 
       // Draw lives indicator
       ctx.textAlign = "left";
