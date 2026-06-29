@@ -1348,7 +1348,7 @@
         snake2: null,
         direction2: { x: 1, y: 0 },
         nextDirection2: { x: 1, y: 0 },
-        food: { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) },
+        foods: [],
         goldenFood: null,
         goldenFoodSpawnTime: 0,
         foodCount: 0,
@@ -1373,6 +1373,59 @@
       // Initialize second snake in 2-player mode
       if (gameMode === "2p") {
         snakeGame.snake2 = [{ x: COLS - 11, y: ROWS - 11 }];
+      }
+
+      // Helper function to spawn a new food at a random position
+      function spawnFood() {
+        let foodX, foodY, validPosition = false;
+
+        while (!validPosition) {
+          foodX = Math.floor(Math.random() * COLS);
+          foodY = Math.floor(Math.random() * ROWS);
+
+          validPosition = true;
+          // Check snake 1
+          for (let seg of snakeGame.snake) {
+            if (seg.x === foodX && seg.y === foodY) {
+              validPosition = false;
+              break;
+            }
+          }
+          // Check snake 2
+          if (validPosition && gameMode === "2p" && snakeGame.snake2) {
+            for (let seg of snakeGame.snake2) {
+              if (seg.x === foodX && seg.y === foodY) {
+                validPosition = false;
+                break;
+              }
+            }
+          }
+          // Check existing foods
+          if (validPosition) {
+            for (let food of snakeGame.foods) {
+              if (food.x === foodX && food.y === foodY) {
+                validPosition = false;
+                break;
+              }
+            }
+          }
+          // Check blocks
+          if (validPosition) {
+            for (let block of snakeGame.blocks) {
+              if (block.x === foodX && block.y === foodY) {
+                validPosition = false;
+                break;
+              }
+            }
+          }
+        }
+
+        return { x: foodX, y: foodY };
+      }
+
+      // Spawn initial 5 foods
+      for (let i = 0; i < 5; i++) {
+        snakeGame.foods.push(spawnFood());
       }
 
       // Load coins and skins from localStorage
@@ -1406,9 +1459,14 @@
                 break;
               }
             }
-            // Check food
-            if (validPosition && snakeGame.food.x === blockX && snakeGame.food.y === blockY) {
-              validPosition = false;
+            // Check all foods
+            if (validPosition) {
+              for (let food of snakeGame.foods) {
+                if (food.x === blockX && food.y === blockY) {
+                  validPosition = false;
+                  break;
+                }
+              }
             }
           }
 
@@ -1565,46 +1623,56 @@
             });
           }
         }
-        // Check regular food collision
-        else if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
-          snakeGame[scoreFlag] += 10;
-          snakeGame.coins += 1;
-          snakeGame.foodCount++;
+        // Check regular food collision (check all foods)
+        let foodEaten = false;
+        for (let i = snakeGame.foods.length - 1; i >= 0; i--) {
+          if (newHead.x === snakeGame.foods[i].x && newHead.y === snakeGame.foods[i].y) {
+            snakeGame[scoreFlag] += 10;
+            snakeGame.coins += 1;
+            snakeGame.foodCount++;
 
-          const oldFoodX = snakeGame.food.x;
-          const oldFoodY = snakeGame.food.y;
+            const oldFoodX = snakeGame.foods[i].x;
+            const oldFoodY = snakeGame.foods[i].y;
 
-          if (snakeGame.foodCount % 5 === 0) {
-            snakeGame.goldenFood = {
-              x: Math.floor(Math.random() * COLS),
-              y: Math.floor(Math.random() * ROWS)
-            };
-            snakeGame.goldenFoodSpawnTime = Date.now();
+            // Remove eaten food
+            snakeGame.foods.splice(i, 1);
+
+            // Spawn new food
+            snakeGame.foods.push(spawnFood());
+
+            if (snakeGame.foodCount % 5 === 0) {
+              snakeGame.goldenFood = {
+                x: Math.floor(Math.random() * COLS),
+                y: Math.floor(Math.random() * ROWS)
+              };
+              snakeGame.goldenFoodSpawnTime = Date.now();
+            }
+
+            if (snakeGame.foodCount % 10 === 0) {
+              snakeGame.powerUp = {
+                x: Math.floor(Math.random() * COLS),
+                y: Math.floor(Math.random() * ROWS)
+              };
+            }
+
+            for (let j = 0; j < 6; j++) {
+              snakeGame.particles.push({
+                x: oldFoodX * GRID_SIZE + GRID_SIZE / 2,
+                y: oldFoodY * GRID_SIZE + GRID_SIZE / 2,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                size: Math.random() * 8 + 4,
+                alpha: 1,
+                color: ['#ff4444', '#d946ef', '#ff8800'][Math.floor(Math.random() * 3)]
+              });
+            }
+            foodEaten = true;
+            break;
           }
+        }
 
-          if (snakeGame.foodCount % 10 === 0) {
-            snakeGame.powerUp = {
-              x: Math.floor(Math.random() * COLS),
-              y: Math.floor(Math.random() * ROWS)
-            };
-          }
-
-          snakeGame.food = {
-            x: Math.floor(Math.random() * COLS),
-            y: Math.floor(Math.random() * ROWS)
-          };
-
-          for (let i = 0; i < 6; i++) {
-            snakeGame.particles.push({
-              x: oldFoodX * GRID_SIZE + GRID_SIZE / 2,
-              y: oldFoodY * GRID_SIZE + GRID_SIZE / 2,
-              vx: (Math.random() - 0.5) * 8,
-              vy: (Math.random() - 0.5) * 8,
-              size: Math.random() * 8 + 4,
-              alpha: 1,
-              color: ['#ff4444', '#d946ef', '#ff8800'][Math.floor(Math.random() * 3)]
-            });
-          }
+        if (foodEaten) {
+          // Skip power-up check if food was eaten
         } else if (snakeGame.powerUp && newHead.x === snakeGame.powerUp.x && newHead.y === snakeGame.powerUp.y) {
           snakeGame[phaseFlag] = true;
           snakeGame[phaseTmrFlag] = 300;
@@ -1677,19 +1745,21 @@
           ctx.stroke();
         }
 
-        // Draw food
+        // Draw all foods
         ctx.fillStyle = "#00ddff";
         ctx.shadowBlur = 12;
         ctx.shadowColor = "#00ddff";
-        ctx.beginPath();
-        ctx.arc(
-          snakeGame.food.x * GRID_SIZE + GRID_SIZE / 2,
-          snakeGame.food.y * GRID_SIZE + GRID_SIZE / 2,
-          GRID_SIZE / 2 - 2,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
+        for (let food of snakeGame.foods) {
+          ctx.beginPath();
+          ctx.arc(
+            food.x * GRID_SIZE + GRID_SIZE / 2,
+            food.y * GRID_SIZE + GRID_SIZE / 2,
+            GRID_SIZE / 2 - 2,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
         ctx.shadowBlur = 0;
 
         // Draw golden food (bonus, double points, 3 second timer)
