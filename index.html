@@ -1948,6 +1948,7 @@
     let alienLasers = [];
     let particles = [];
     let shootCooldown = 0;
+    let shootCooldown2 = 0; // Separate cooldown for player 2
     let aliens = [];
     let powerUps = [];
     let multiShotActive = false;
@@ -2022,6 +2023,7 @@
       alienLasers = [];
       particles = [];
       shootCooldown = 0;
+      shootCooldown2 = 0;
       powerUps = [];
       multiShotActive = false;
       multiShotTimer = 0;
@@ -2250,6 +2252,9 @@
       if (shootCooldown > 0) {
         shootCooldown--;
       }
+      if (shootCooldown2 > 0) {
+        shootCooldown2--;
+      }
       if (multiShotTimer > 0) {
         multiShotTimer--;
       } else {
@@ -2401,7 +2406,7 @@
       }
 
       // Player 2 shooting (W key in 2-player mode)
-      if (player2 && keys2.KeyW && shootCooldown === 0) {
+      if (player2 && keys2.KeyW && shootCooldown2 === 0) {
         // Player 2 always fires single shots
         lasers.push({
           x: player2.x + player2.width / 2 - 2,
@@ -2412,7 +2417,7 @@
           color: "#ff007f",
           playerNum: 2
         });
-        shootCooldown = 20;
+        shootCooldown2 = 20;
       }
 
       // Update player lasers
@@ -2717,6 +2722,56 @@
           }
           powerUps.splice(i, 1);
         }
+        // Collision: Power-up vs Player 2 Ship (in 2-player mode)
+        else if (player2 && rectCollision(pu, { x: player2.x, y: player2.y, width: player2.width, height: player2.height })) {
+          let particleColor = '#ffdd00';
+
+          if (pu.type === 'multi-shot') {
+            multiShotActive = true;
+            multiShotTimer = 300; // 5 seconds at 60 FPS
+            particleColor = '#ffdd00';
+          } else if (pu.type === 'rapid-fire') {
+            rapidFireActive = true;
+            rapidFireTimer = 300; // 5 seconds at 60 FPS
+            particleColor = '#ff6b9d';
+          } else if (pu.type === 'laser-burst') {
+            laserBurstActive = true;
+            laserBurstTimer = 300; // 5 seconds at 60 FPS
+            particleColor = '#00ff88';
+          } else if (pu.type === 'bomb') {
+            // Add bomb to inventory
+            bombCount += 1;
+            particleColor = '#ff4444';
+          } else if (pu.type === 'extra-life') {
+            lives++;
+            particleColor = '#ff00ff';
+          } else if (pu.type === 'shield-boost') {
+            // Give extra shield if not active
+            if (!shieldActive) {
+              shieldActive = true;
+              shieldTimer = 240; // 4 seconds at 60 FPS
+            } else {
+              shieldTimer += 120; // Add 2 more seconds
+            }
+            playerShotCount = 0;
+            particleColor = '#64ff96';
+          }
+
+          // Particle burst for all power-ups
+          for (let j = 0; j < 15; j++) {
+            particles.push({
+              x: pu.x,
+              y: pu.y,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              size: Math.random() * 6 + 3,
+              alpha: 1,
+              decay: 0.03,
+              color: particleColor
+            });
+          }
+          powerUps.splice(i, 1);
+        }
       }
 
       // Update particles
@@ -2869,6 +2924,13 @@
         ctx.lineTo(player.x, player.y + player.height);
         ctx.closePath();
         ctx.fill();
+
+        // Draw player number on ship
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("1", player.x + player.width / 2, player.y + player.height / 2);
       }
 
       // Draw shield when active
@@ -2907,6 +2969,13 @@
         ctx.lineTo(player2.x, player2.y + player2.height);
         ctx.closePath();
         ctx.fill();
+
+        // Draw player number on ship
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("2", player2.x + player2.width / 2, player2.y + player2.height / 2);
 
         // Draw shield around Player 2 (shared shield in 2-player mode)
         if (shieldActive) {
