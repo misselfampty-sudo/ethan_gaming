@@ -1192,6 +1192,16 @@
       twoplaySetupScreen.style.display = "none";
       gameScreen.style.display = "block";
 
+      const canvas = document.getElementById("gameCanvas");
+      // Resize canvas for 2-player mode
+      if (gameMode === "2p") {
+        canvas.width = 800;
+        canvas.height = 600;
+      } else {
+        canvas.width = 600;
+        canvas.height = 450;
+      }
+
       if (gameId === 'space-invaders') {
         startSpaceInvaders();
       } else if (gameId === 'retro-snake') {
@@ -1335,22 +1345,35 @@
         snake: [{ x: 10, y: 10 }],
         direction: { x: 1, y: 0 },
         nextDirection: { x: 1, y: 0 },
+        snake2: null,
+        direction2: { x: 1, y: 0 },
+        nextDirection2: { x: 1, y: 0 },
         food: { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) },
         goldenFood: null,
         goldenFoodSpawnTime: 0,
         foodCount: 0,
         score: 0,
+        score2: 0,
         gameOver: false,
+        gameOver2: false,
         scoreSaved: false,
+        scoreSaved2: false,
         particles: [],
         blocks: [],
         powerUp: null,
         phaseThrough: false,
         phaseThroughTimer: 0,
+        phaseThrough2: false,
+        phaseThroughTimer2: 0,
         coins: 0,
         currentSkin: "classic",
         ownedSkins: ["classic"]
       };
+
+      // Initialize second snake in 2-player mode
+      if (gameMode === "2p") {
+        snakeGame.snake2 = [{ x: COLS - 11, y: ROWS - 11 }];
+      }
 
       // Load coins and skins from localStorage
       const savedCoins = localStorage.getItem("snake_coins");
@@ -1399,20 +1422,37 @@
       const handleKeyDown = (e) => {
         const key = e.key.toLowerCase();
 
-        if (key === 'arrowup' || key === 'w') {
+        // Player 1 controls (Arrow keys)
+        if (key === 'arrowup') {
           if (snakeGame.direction.y === 0) snakeGame.nextDirection = { x: 0, y: -1 };
         }
-        else if (key === 'arrowdown' || key === 's') {
+        else if (key === 'arrowdown') {
           if (snakeGame.direction.y === 0) snakeGame.nextDirection = { x: 0, y: 1 };
         }
-        else if (key === 'arrowleft' || key === 'a') {
+        else if (key === 'arrowleft') {
           if (snakeGame.direction.x === 0) snakeGame.nextDirection = { x: -1, y: 0 };
         }
-        else if (key === 'arrowright' || key === 'd') {
+        else if (key === 'arrowright') {
           if (snakeGame.direction.x === 0) snakeGame.nextDirection = { x: 1, y: 0 };
         }
-        else if (key === ' ') {
-          if (snakeGame.gameOver) {
+        // Player 2 controls (WASD) - only in 2-player mode
+        else if (gameMode === "2p") {
+          if (key === 'w') {
+            if (snakeGame.direction2.y === 0) snakeGame.nextDirection2 = { x: 0, y: -1 };
+          }
+          else if (key === 's') {
+            if (snakeGame.direction2.y === 0) snakeGame.nextDirection2 = { x: 0, y: 1 };
+          }
+          else if (key === 'a') {
+            if (snakeGame.direction2.x === 0) snakeGame.nextDirection2 = { x: -1, y: 0 };
+          }
+          else if (key === 'd') {
+            if (snakeGame.direction2.x === 0) snakeGame.nextDirection2 = { x: 1, y: 0 };
+          }
+        }
+
+        if (key === ' ') {
+          if (snakeGame.gameOver && (gameMode === "1p" || (gameMode === "2p" && snakeGame.gameOver2))) {
             startSnake(); // Restart
           }
           e.preventDefault();
@@ -1421,49 +1461,98 @@
 
       window.addEventListener('keydown', handleKeyDown);
 
-      function updateSnake() {
-        if (snakeGame.gameOver) return;
+      // Helper to check if position is occupied
+      function isPositionOccupied(x, y, excludeSnake = null) {
+        // Check blocks
+        for (let block of snakeGame.blocks) {
+          if (block.x === x && block.y === y) return true;
+        }
+        // Check snake 1
+        if (excludeSnake !== 1) {
+          for (let seg of snakeGame.snake) {
+            if (seg.x === x && seg.y === y) return true;
+          }
+        }
+        // Check snake 2 (in 2-player mode)
+        if (gameMode === "2p" && excludeSnake !== 2 && snakeGame.snake2) {
+          for (let seg of snakeGame.snake2) {
+            if (seg.x === x && seg.y === y) return true;
+          }
+        }
+        return false;
+      }
 
-        snakeGame.direction = snakeGame.nextDirection;
-        const head = snakeGame.snake[snakeGame.snake.length - 1];
+      function updateSingleSnake(snakeNum) {
+        const isSnake1 = snakeNum === 1;
+        const snake = isSnake1 ? snakeGame.snake : snakeGame.snake2;
+        const otherSnake = isSnake1 ? snakeGame.snake2 : snakeGame.snake;
+        let gameOverFlag = isSnake1 ? "gameOver" : "gameOver2";
+        let scoreFlag = isSnake1 ? "score" : "score2";
+        let phaseFlag = isSnake1 ? "phaseThrough" : "phaseThrough2";
+        let phaseTmrFlag = isSnake1 ? "phaseThroughTimer" : "phaseThroughTimer2";
+        let savFlag = isSnake1 ? "scoreSaved" : "scoreSaved2";
+
+        if (snakeGame[gameOverFlag]) return;
+
+        // Update direction
+        if (isSnake1) {
+          snakeGame.direction = snakeGame.nextDirection;
+        } else {
+          snakeGame.direction2 = snakeGame.nextDirection2;
+        }
+
+        const head = snake[snake.length - 1];
+        const direction = isSnake1 ? snakeGame.direction : snakeGame.direction2;
         const newHead = {
-          x: (head.x + snakeGame.direction.x + COLS) % COLS,
-          y: (head.y + snakeGame.direction.y + ROWS) % ROWS
+          x: (head.x + direction.x + COLS) % COLS,
+          y: (head.y + direction.y + ROWS) % ROWS
         };
 
         // Check self collision
-        for (let segment of snakeGame.snake) {
+        for (let segment of snake) {
           if (segment.x === newHead.x && segment.y === newHead.y) {
-            snakeGame.gameOver = true;
-            if (!snakeGame.scoreSaved) {
-              saveHighScore("retro-snake", Math.floor(snakeGame.score / 10), 1);
-              snakeGame.scoreSaved = true;
+            snakeGame[gameOverFlag] = true;
+            if (!snakeGame[savFlag]) {
+              saveHighScore("retro-snake", Math.floor(snakeGame[scoreFlag] / 10), 1);
+              snakeGame[savFlag] = true;
             }
             return;
           }
         }
 
-        // Check block collision (blocks act as barriers, prevent movement)
-        // Unless phase-through power-up is active
-        if (!snakeGame.phaseThrough) {
-          for (let block of snakeGame.blocks) {
-            if (block.x === newHead.x && block.y === newHead.y) {
-              // Can't move through block - stay in place
+        // Check collision with other snake
+        if (gameMode === "2p" && otherSnake) {
+          for (let segment of otherSnake) {
+            if (segment.x === newHead.x && segment.y === newHead.y) {
+              snakeGame[gameOverFlag] = true;
+              if (!snakeGame[savFlag]) {
+                saveHighScore("retro-snake", Math.floor(snakeGame[scoreFlag] / 10), 1);
+                snakeGame[savFlag] = true;
+              }
               return;
             }
           }
         }
 
-        snakeGame.snake.push(newHead);
+        // Check block collision (blocks act as barriers, prevent movement)
+        // Unless phase-through power-up is active
+        if (!snakeGame[phaseFlag]) {
+          for (let block of snakeGame.blocks) {
+            if (block.x === newHead.x && block.y === newHead.y) {
+              return;
+            }
+          }
+        }
+
+        snake.push(newHead);
 
         // Check golden food collision (priority)
         if (snakeGame.goldenFood && newHead.x === snakeGame.goldenFood.x && newHead.y === snakeGame.goldenFood.y) {
-          snakeGame.score += 20; // Double points!
-          snakeGame.coins += 3; // Bonus coins for golden food!
+          snakeGame[scoreFlag] += 20;
+          snakeGame.coins += 3;
           snakeGame.goldenFood = null;
           snakeGame.goldenFoodSpawnTime = 0;
 
-          // Particle burst with golden color
           for (let i = 0; i < 10; i++) {
             snakeGame.particles.push({
               x: newHead.x * GRID_SIZE + GRID_SIZE / 2,
@@ -1478,24 +1567,21 @@
         }
         // Check regular food collision
         else if (newHead.x === snakeGame.food.x && newHead.y === snakeGame.food.y) {
-          snakeGame.score += 10;
-          snakeGame.coins += 1; // Earn 1 coin per food
+          snakeGame[scoreFlag] += 10;
+          snakeGame.coins += 1;
           snakeGame.foodCount++;
 
-          // Store old food position for particle burst
           const oldFoodX = snakeGame.food.x;
           const oldFoodY = snakeGame.food.y;
 
-          // Spawn golden food every 5th food
           if (snakeGame.foodCount % 5 === 0) {
             snakeGame.goldenFood = {
               x: Math.floor(Math.random() * COLS),
               y: Math.floor(Math.random() * ROWS)
             };
-            snakeGame.goldenFoodSpawnTime = Date.now(); // Timestamp in milliseconds
+            snakeGame.goldenFoodSpawnTime = Date.now();
           }
 
-          // Spawn phase-through power-up every 10th food (10% chance)
           if (snakeGame.foodCount % 10 === 0) {
             snakeGame.powerUp = {
               x: Math.floor(Math.random() * COLS),
@@ -1503,13 +1589,11 @@
             };
           }
 
-          // Spawn regular food
           snakeGame.food = {
             x: Math.floor(Math.random() * COLS),
             y: Math.floor(Math.random() * ROWS)
           };
 
-          // Particle burst at eaten food location (not new location)
           for (let i = 0; i < 6; i++) {
             snakeGame.particles.push({
               x: oldFoodX * GRID_SIZE + GRID_SIZE / 2,
@@ -1518,17 +1602,15 @@
               vy: (Math.random() - 0.5) * 8,
               size: Math.random() * 8 + 4,
               alpha: 1,
-              color: ['#39ff14', '#00f0ff', '#ff007f'][Math.floor(Math.random() * 3)]
+              color: ['#ff4444', '#d946ef', '#ff8800'][Math.floor(Math.random() * 3)]
             });
           }
         } else if (snakeGame.powerUp && newHead.x === snakeGame.powerUp.x && newHead.y === snakeGame.powerUp.y) {
-          // Collect power-up
-          snakeGame.phaseThrough = true;
-          snakeGame.phaseThroughTimer = 300; // 5 seconds at 60 FPS
+          snakeGame[phaseFlag] = true;
+          snakeGame[phaseTmrFlag] = 300;
           snakeGame.powerUp = null;
-          snakeGame.score += 50;
+          snakeGame[scoreFlag] += 50;
 
-          // Particle burst with pink color
           for (let i = 0; i < 12; i++) {
             snakeGame.particles.push({
               x: newHead.x * GRID_SIZE + GRID_SIZE / 2,
@@ -1540,17 +1622,16 @@
               color: '#ff00ff'
             });
           }
-
-          snakeGame.snake.shift();
+          snake.shift();
         } else {
-          snakeGame.snake.shift();
+          snake.shift();
         }
 
         // Update phase-through timer
-        if (snakeGame.phaseThroughTimer > 0) {
-          snakeGame.phaseThroughTimer--;
+        if (snakeGame[phaseTmrFlag] > 0) {
+          snakeGame[phaseTmrFlag]--;
         } else {
-          snakeGame.phaseThrough = false;
+          snakeGame[phaseFlag] = false;
         }
 
         // Check if golden food expired (3 seconds = 3000ms)
@@ -1566,6 +1647,13 @@
           p.alpha -= 0.05;
           return p.alpha > 0;
         });
+      }
+
+      function updateSnake() {
+        updateSingleSnake(1);
+        if (gameMode === "2p" && snakeGame.snake2) {
+          updateSingleSnake(2);
+        }
       }
 
       function drawSnake() {
@@ -1705,89 +1793,89 @@
           ctx.shadowBlur = 0;
         }
 
-        // Draw snake with gradient and smooth curves
-        for (let i = 0; i < snakeGame.snake.length; i++) {
-          const segment = snakeGame.snake[i];
-          const isHead = i === snakeGame.snake.length - 1;
-          const nextSegment = i < snakeGame.snake.length - 1 ? snakeGame.snake[i + 1] : null;
+        // Helper to draw a single snake
+        function drawSingleSnake(snake, baseColor) {
+          for (let i = 0; i < snake.length; i++) {
+            const segment = snake[i];
+            const isHead = i === snake.length - 1;
+            const nextSegment = i < snake.length - 1 ? snake[i + 1] : null;
 
-          // Use current skin color with brightness gradient
-          const baseColor = getSnakeColor();
-          const brightness = isHead ? 1 : 0.6 + (i / snakeGame.snake.length) * 0.4;
-          const color = adjustBrightness(baseColor, brightness);
+            const brightness = isHead ? 1 : 0.6 + (i / snake.length) * 0.4;
+            const color = adjustBrightness(baseColor, brightness);
 
-          ctx.fillStyle = color;
-          ctx.strokeStyle = color;
-          ctx.shadowBlur = isHead ? 16 : 8;
-          ctx.shadowColor = color;
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            ctx.shadowBlur = isHead ? 16 : 8;
+            ctx.shadowColor = color;
 
-          const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
-          const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
-          const size = isHead ? GRID_SIZE - 1 : GRID_SIZE - 2;
+            const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
+            const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
+            const size = isHead ? GRID_SIZE - 1 : GRID_SIZE - 2;
 
-          if (isHead) {
-            // Draw head as larger circle with more glow
-            ctx.beginPath();
-            ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-            ctx.fill();
+            if (isHead) {
+              ctx.beginPath();
+              ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+              ctx.fill();
 
-            // Draw eyes pointing in direction of next segment
-            const eyeSize = 3;
-            const eyeDistance = size / 4;
+              const eyeSize = 3;
+              const eyeDistance = size / 4;
 
-            // Determine direction based on next segment
-            let eyeOffsetX = 0;
-            let eyeOffsetY = 0;
-            if (nextSegment) {
-              eyeOffsetX = (nextSegment.x - segment.x) * eyeDistance;
-              eyeOffsetY = (nextSegment.y - segment.y) * eyeDistance;
-            } else if (snakeGame.snake.length > 1) {
-              // If no next segment, use previous direction
-              const prev = snakeGame.snake[snakeGame.snake.length - 2];
-              eyeOffsetX = (segment.x - prev.x) * eyeDistance;
-              eyeOffsetY = (segment.y - prev.y) * eyeDistance;
-            }
+              let eyeOffsetX = 0;
+              let eyeOffsetY = 0;
+              if (nextSegment) {
+                eyeOffsetX = (nextSegment.x - segment.x) * eyeDistance;
+                eyeOffsetY = (nextSegment.y - segment.y) * eyeDistance;
+              } else if (snake.length > 1) {
+                const prev = snake[snake.length - 2];
+                eyeOffsetX = (segment.x - prev.x) * eyeDistance;
+                eyeOffsetY = (segment.y - prev.y) * eyeDistance;
+              }
 
-            // Left eye
-            ctx.fillStyle = "#ffff00";
-            ctx.shadowColor = "#ffff00";
-            ctx.beginPath();
-            ctx.arc(x - 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
-            ctx.fill();
+              ctx.fillStyle = "#ffff00";
+              ctx.shadowColor = "#ffff00";
+              ctx.beginPath();
+              ctx.arc(x - 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
+              ctx.fill();
 
-            // Right eye
-            ctx.beginPath();
-            ctx.arc(x + 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            // Draw body segments as circles
-            ctx.beginPath();
-            ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-            ctx.fill();
+              ctx.beginPath();
+              ctx.arc(x + 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
+              ctx.fill();
+            } else {
+              ctx.beginPath();
+              ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+              ctx.fill();
 
-            // Draw connecting line to next segment (but not if wrapping around screen)
-            if (nextSegment) {
-              const nextX = nextSegment.x * GRID_SIZE + GRID_SIZE / 2;
-              const nextY = nextSegment.y * GRID_SIZE + GRID_SIZE / 2;
+              if (nextSegment) {
+                const nextX = nextSegment.x * GRID_SIZE + GRID_SIZE / 2;
+                const nextY = nextSegment.y * GRID_SIZE + GRID_SIZE / 2;
 
-              // Check if segments are adjacent (not wrapping around screen)
-              const distX = Math.abs(nextSegment.x - segment.x);
-              const distY = Math.abs(nextSegment.y - segment.y);
+                const distX = Math.abs(nextSegment.x - segment.x);
+                const distY = Math.abs(nextSegment.y - segment.y);
 
-              // Only draw line if segments are close (1 grid unit apart max)
-              if (distX <= 1 && distY <= 1) {
-                ctx.strokeStyle = color;
-                ctx.lineWidth = size / 2;
-                ctx.lineCap = "round";
-                ctx.lineJoin = "round";
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(nextX, nextY);
-                ctx.stroke();
+                if (distX <= 1 && distY <= 1) {
+                  ctx.strokeStyle = color;
+                  ctx.lineWidth = size / 2;
+                  ctx.lineCap = "round";
+                  ctx.lineJoin = "round";
+                  ctx.beginPath();
+                  ctx.moveTo(x, y);
+                  ctx.lineTo(nextX, nextY);
+                  ctx.stroke();
+                }
               }
             }
           }
         }
+
+        // Draw snake 1 (Red for 2-player, or skin color for 1-player)
+        const snake1Color = gameMode === "2p" ? "#ff4444" : getSnakeColor();
+        drawSingleSnake(snakeGame.snake, snake1Color);
+
+        // Draw snake 2 (Purple) in 2-player mode
+        if (gameMode === "2p" && snakeGame.snake2) {
+          drawSingleSnake(snakeGame.snake2, "#d946ef");
+        }
+
         ctx.shadowBlur = 0;
 
         // Draw particles
@@ -1802,17 +1890,38 @@
         }
 
         // Draw HUD
-        ctx.fillStyle = "#00f0ff";
-        ctx.font = "24px 'Share Tech Mono', monospace";
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "#00f0ff";
-        ctx.textAlign = "left";
-        ctx.fillText(`SCORE: ${snakeGame.score}`, 20, 40);
+        if (gameMode === "2p") {
+          // Player 1 score (Red)
+          ctx.fillStyle = "#ff4444";
+          ctx.font = "20px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = "#ff4444";
+          ctx.textAlign = "left";
+          ctx.fillText(`P1 SCORE: ${snakeGame.score}`, 20, 40);
 
-        // Draw coins counter
-        ctx.fillStyle = "#39ff14";
-        ctx.shadowColor = "#39ff14";
-        ctx.fillText(`💰 COINS: ${snakeGame.coins}`, 20, 65);
+          // Player 2 score (Purple)
+          ctx.fillStyle = "#d946ef";
+          ctx.shadowColor = "#d946ef";
+          ctx.fillText(`P2 SCORE: ${snakeGame.score2}`, 20, 65);
+
+          // Coins counter
+          ctx.fillStyle = "#39ff14";
+          ctx.shadowColor = "#39ff14";
+          ctx.fillText(`💰 COINS: ${snakeGame.coins}`, 20, 90);
+        } else {
+          // Single player score display
+          ctx.fillStyle = "#00f0ff";
+          ctx.font = "24px 'Share Tech Mono', monospace";
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = "#00f0ff";
+          ctx.textAlign = "left";
+          ctx.fillText(`SCORE: ${snakeGame.score}`, 20, 40);
+
+          // Draw coins counter
+          ctx.fillStyle = "#39ff14";
+          ctx.shadowColor = "#39ff14";
+          ctx.fillText(`💰 COINS: ${snakeGame.coins}`, 20, 65);
+        }
 
         // Update the shop display coins in real-time
         document.getElementById("coins-amount").innerText = snakeGame.coins;
@@ -1843,7 +1952,7 @@
         }
 
         // Draw game over screen
-        if (snakeGame.gameOver) {
+        if (gameMode === "2p" ? (snakeGame.gameOver && snakeGame.gameOver2) : snakeGame.gameOver) {
           ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1852,18 +1961,37 @@
           ctx.shadowBlur = 12;
           ctx.shadowColor = "#ff007f";
           ctx.textAlign = "center";
-          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
 
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "20px 'Share Tech Mono', monospace";
-          ctx.shadowBlur = 0;
-          ctx.fillText(`FINAL SCORE: ${snakeGame.score}`, canvas.width / 2, canvas.height / 2 + 30);
+          if (gameMode === "2p") {
+            // Show both players' scores
+            ctx.fillStyle = "#ff4444";
+            ctx.font = "20px 'Share Tech Mono', monospace";
+            ctx.shadowBlur = 0;
+            ctx.fillText(`P1 FINAL SCORE: ${snakeGame.score}`, canvas.width / 2, canvas.height / 2 + 10);
+
+            ctx.fillStyle = "#d946ef";
+            ctx.fillText(`P2 FINAL SCORE: ${snakeGame.score2}`, canvas.width / 2, canvas.height / 2 + 40);
+
+            const winner = snakeGame.score > snakeGame.score2 ? "PLAYER 1" : snakeGame.score2 > snakeGame.score ? "PLAYER 2" : "TIE";
+            const winnerColor = snakeGame.score > snakeGame.score2 ? "#ff4444" : snakeGame.score2 > snakeGame.score ? "#d946ef" : "#ffdd00";
+            ctx.fillStyle = winnerColor;
+            ctx.font = "24px 'Share Tech Mono', monospace";
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = winnerColor;
+            ctx.fillText(`🏆 ${winner} WINS!`, canvas.width / 2, canvas.height / 2 + 75);
+          } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "20px 'Share Tech Mono', monospace";
+            ctx.shadowBlur = 0;
+            ctx.fillText(`FINAL SCORE: ${snakeGame.score}`, canvas.width / 2, canvas.height / 2 + 30);
+          }
 
           ctx.fillStyle = "#00f0ff";
           ctx.font = "16px 'Share Tech Mono', monospace";
           ctx.shadowBlur = 8;
           ctx.shadowColor = "#00f0ff";
-          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2, canvas.height / 2 + 80);
+          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2, canvas.height / 2 + 120);
           ctx.shadowBlur = 0;
         }
       }
