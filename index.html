@@ -786,7 +786,7 @@
         <!-- Leaderboard Panel -->
         <div class="meta-panel">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>🏆 Arcade Leaderboard (Space Invaders)</h2>
+            <h2>🏆 Arcade Leaderboard (Combined Score)</h2>
             <div id="sync-indicator" style="font-size: 0.85rem; color: #00f0ff; font-weight: bold; display: flex; align-items: center; gap: 5px;">
               <span id="sync-status">✓ Synced</span>
             </div>
@@ -797,8 +797,10 @@
                 <tr>
                   <th>Rank</th>
                   <th>Player</th>
-                  <th style="text-align: center;">Space Invaders</th>
-                  <th style="text-align: center;">Snake</th>
+                  <th style="text-align: center;">🚀</th>
+                  <th style="text-align: center;">🐍</th>
+                  <th style="text-align: center;">🧱</th>
+                  <th style="text-align: center;">Total</th>
                 </tr>
               </thead>
               <tbody id="leaderboard-body">
@@ -1094,17 +1096,22 @@
       for (const name in profiles) {
         const si = profiles[name].highScores?.["space-invaders"] || { score: 0, level: 1 };
         const snake = profiles[name].highScores?.["retro-snake"] || { score: 0, level: 1 };
+        const tetris = profiles[name].highScores?.["tetris"] || { score: 0, level: 1 };
+        const totalScore = si.score + snake.score + tetris.score;
         list.push({
           name: name,
           siScore: si.score,
           siLevel: si.level,
           snakeScore: snake.score,
-          snakeLevel: snake.level
+          snakeLevel: snake.level,
+          tetrisScore: tetris.score,
+          tetrisLevel: tetris.level,
+          totalScore: totalScore
         });
       }
 
-      // Sort with highest Space Invaders scores at top
-      list.sort((a, b) => b.siScore - a.siScore);
+      // Sort by combined score from all three games
+      list.sort((a, b) => b.totalScore - a.totalScore);
 
       leaderboardBody.innerHTML = "";
       list.forEach((item, index) => {
@@ -1116,6 +1123,8 @@
           <td style="font-weight: bold; color: ${isActive ? 'var(--accent-teal)' : 'inherit'}">${item.name} ${isActive ? '🚀' : ''}</td>
           <td class="score-cell" style="text-align: center;">${item.siScore}</td>
           <td class="score-cell" style="text-align: center;">${item.snakeScore}</td>
+          <td class="score-cell" style="text-align: center;">${item.tetrisScore}</td>
+          <td class="score-cell" style="text-align: center; font-weight: bold; color: var(--accent-green);">${item.totalScore}</td>
         `;
         leaderboardBody.appendChild(row);
       });
