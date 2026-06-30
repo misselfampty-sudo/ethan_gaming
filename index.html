@@ -2560,11 +2560,12 @@
         const rows = 4;
         const spacingX = 60; // spacing between alien columns
         const spacingY = 40; // spacing between alien rows
+        const alienWidth = 30;
 
-        // Calculate startX to center the 8 columns on our 600px canvas
-        // Grid width = (7 cols * 60px spacing) + 30px alien width = 450px
-        // Margin = (600px canvas - 450px grid) / 2 = 75px
-        const startX = 75;
+        // Calculate startX to center the alien grid on the canvas (works for any canvas width)
+        // Grid width = (cols - 1) * spacingX + alienWidth
+        const gridWidth = (cols - 1) * spacingX + alienWidth;
+        const startX = (canvas.width - gridWidth) / 2;
         const startY = 60; // offset from top so UI doesn't overlap
 
         for (let r = 0; r < rows; r++) {
