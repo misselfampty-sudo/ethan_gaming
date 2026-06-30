@@ -3003,10 +3003,9 @@
               }
               lasers.splice(i, 1);
 
-              // If all aliens are destroyed, progress to next level wave!
+              // If all aliens are destroyed, progress to next wave!
               if (aliens.length === 0) {
                 level++;
-                lives = 3; // Reset lives for new level
                 spawnAliens();
               }
               break;
