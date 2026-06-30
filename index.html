@@ -2451,6 +2451,13 @@
     let laserBurstActive = false;
     let laserBurstTimer = 0;
     let bombCount = 0; // Number of bombs available to fire
+    let multiShotActive2 = false; // Player 2 power-ups
+    let multiShotTimer2 = 0;
+    let rapidFireActive2 = false;
+    let rapidFireTimer2 = 0;
+    let laserBurstActive2 = false;
+    let laserBurstTimer2 = 0;
+    let bombCount2 = 0;
     let shieldBoostTimer = 0;
     let lives = 3;
     let invulnerableTimer = 0;
@@ -2525,6 +2532,13 @@
       laserBurstActive = false;
       laserBurstTimer = 0;
       bombCount = 0;
+      multiShotActive2 = false;
+      multiShotTimer2 = 0;
+      rapidFireActive2 = false;
+      rapidFireTimer2 = 0;
+      laserBurstActive2 = false;
+      laserBurstTimer2 = 0;
+      bombCount2 = 0;
       shieldBoostTimer = 0;
       boss = null;
       bossMinions = [];
@@ -2764,6 +2778,24 @@
       } else {
         laserBurstActive = false;
       }
+
+      // Player 2 power-up timers (in 2-player mode)
+      if (multiShotTimer2 > 0) {
+        multiShotTimer2--;
+      } else {
+        multiShotActive2 = false;
+      }
+      if (rapidFireTimer2 > 0) {
+        rapidFireTimer2--;
+      } else {
+        rapidFireActive2 = false;
+      }
+      if (laserBurstTimer2 > 0) {
+        laserBurstTimer2--;
+      } else {
+        laserBurstActive2 = false;
+      }
+
       if (shieldBoostTimer > 0) {
         shieldBoostTimer--;
       }
@@ -2901,17 +2933,81 @@
 
       // Player 2 shooting (W key in 2-player mode)
       if (player2 && keys2.KeyW && shootCooldown2 === 0) {
-        // Player 2 always fires single shots
-        lasers.push({
-          x: player2.x + player2.width / 2 - 2,
-          y: player2.y,
-          width: 4,
-          height: 12,
-          speed: 8,
-          color: "#ff007f",
-          playerNum: 2
-        });
-        shootCooldown2 = 20;
+        if (bombCount2 > 0) {
+          // Player 2 bomb weapon
+          lasers.push({
+            x: player2.x + player2.width / 2 - 2,
+            y: player2.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ff4444",
+            type: "bomb",
+            playerNum: 2
+          });
+          bombCount2--;
+        } else if (laserBurstActive2) {
+          // Player 2 laser burst
+          const baseX = player2.x + player2.width / 2;
+          for (let angle = -2; angle <= 2; angle++) {
+            lasers.push({
+              x: baseX + angle * 8 - 2,
+              y: player2.y,
+              width: 4,
+              height: 12,
+              speed: 10,
+              color: "#00ff88",
+              playerNum: 2
+            });
+          }
+        } else if (multiShotActive2) {
+          // Player 2 triple shot
+          const baseX = player2.x + player2.width / 2;
+          const spread = 15;
+
+          lasers.push({
+            x: baseX - spread - 2,
+            y: player2.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00",
+            playerNum: 2
+          });
+          lasers.push({
+            x: baseX - 2,
+            y: player2.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00",
+            playerNum: 2
+          });
+          lasers.push({
+            x: baseX + spread - 2,
+            y: player2.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ffdd00",
+            playerNum: 2
+          });
+        } else {
+          // Player 2 regular single shot
+          lasers.push({
+            x: player2.x + player2.width / 2 - 2,
+            y: player2.y,
+            width: 4,
+            height: 12,
+            speed: 8,
+            color: "#ff007f",
+            playerNum: 2
+          });
+        }
+
+        // Rapid-fire reduces cooldown for Player 2
+        let cooldown2 = rapidFireActive2 ? 8 : 20;
+        shootCooldown2 = cooldown2;
       }
 
       // Update player lasers
@@ -3220,20 +3316,20 @@
           let particleColor = '#ffdd00';
 
           if (pu.type === 'multi-shot') {
-            multiShotActive = true;
-            multiShotTimer = 300; // 5 seconds at 60 FPS
+            multiShotActive2 = true;
+            multiShotTimer2 = 300; // 5 seconds at 60 FPS
             particleColor = '#ffdd00';
           } else if (pu.type === 'rapid-fire') {
-            rapidFireActive = true;
-            rapidFireTimer = 300; // 5 seconds at 60 FPS
+            rapidFireActive2 = true;
+            rapidFireTimer2 = 300; // 5 seconds at 60 FPS
             particleColor = '#ff6b9d';
           } else if (pu.type === 'laser-burst') {
-            laserBurstActive = true;
-            laserBurstTimer = 300; // 5 seconds at 60 FPS
+            laserBurstActive2 = true;
+            laserBurstTimer2 = 300; // 5 seconds at 60 FPS
             particleColor = '#00ff88';
           } else if (pu.type === 'bomb') {
-            // Add bomb to inventory
-            bombCount += 1;
+            // Add bomb to Player 2 inventory
+            bombCount2 += 1;
             particleColor = '#ff4444';
           } else if (pu.type === 'extra-life') {
             lives++;
