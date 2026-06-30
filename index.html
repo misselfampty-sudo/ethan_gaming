@@ -1211,8 +1211,11 @@
       gameScreen.style.display = "block";
 
       const canvas = document.getElementById("gameCanvas");
-      // Resize canvas for 2-player mode
-      if (gameMode === "2p") {
+      // Resize canvas based on game mode and game type
+      if (gameId === 'tetris') {
+        canvas.width = 400;
+        canvas.height = 800;
+      } else if (gameMode === "2p") {
         canvas.width = 800;
         canvas.height = 600;
       } else {
