@@ -687,6 +687,24 @@
       margin-bottom: 3px;
     }
 
+    /* Friendly in-page message (replaces the browser popup) */
+    .shop-message {
+      display: none;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--accent-pink);
+      background-color: rgba(255, 0, 127, 0.12);
+      color: var(--accent-pink);
+      font-family: 'Share Tech Mono', monospace;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .shop-message.show {
+      display: block;
+    }
+
     .shop-item.owned .shop-item-price::after {
       content: " ✓";
       color: var(--accent-teal);
@@ -860,6 +878,7 @@
             <h3>🛍️ Snake Skins Shop</h3>
             <div class="coins-display">💰 <span id="coins-amount">0</span> coins</div>
           </div>
+          <div class="shop-message" id="shop-message"></div>
           <div class="shop-items" id="shop-items">
             <!-- Shop items loaded dynamically -->
           </div>
@@ -868,10 +887,8 @@
 
       <!-- Live coding learning panel -->
       <div class="learn-panel">
-        <h2>💡 Game Architecture (Behind the Scenes)</h2>
+        <h2>🎮 Controls</h2>
         <ul>
-          <li><strong>Dashboard Navigation:</strong> We use simple CSS <code>display: none</code> and <code>display: block</code> toggles in JavaScript to switch screens without reloading the webpage!</li>
-          <li><strong>The Game Loop:</strong> Pressing "Back to Arcade" stops the <code>requestAnimationFrame</code> loop completely. This saves battery power by letting your computer stop calculating when you aren't playing!</li>
           <li><strong>Controls:</strong> Use the <span class="key-badge">◀ Left Arrow</span> and <span class="key-badge">▶ Right Arrow</span> keys to slide your ship back and forth.</li>
         </ul>
       </div>
@@ -1283,11 +1300,11 @@
 
       const skins = [
         { id: "classic", name: "Classic", icon: "🐍", price: 0 },
-        { id: "gold", name: "Gold", icon: "🟡", price: 50 },
-        { id: "fire", name: "Fire", icon: "🔥", price: 75 },
-        { id: "ice", name: "Ice", icon: "❄️", price: 60 },
-        { id: "royal", name: "Royal", icon: "👑", price: 100 },
-        { id: "neon", name: "Neon", icon: "⚡", price: 80 }
+        { id: "gold", name: "Gold", icon: "🟡", price: 25 },
+        { id: "fire", name: "Fire", icon: "🔥", price: 38 },
+        { id: "ice", name: "Ice", icon: "❄️", price: 30 },
+        { id: "royal", name: "Royal", icon: "👑", price: 50 },
+        { id: "neon", name: "Neon", icon: "⚡", price: 40 }
       ];
 
       shopItemsEl.innerHTML = skins.map(skin => {
@@ -1307,6 +1324,8 @@
       document.getElementById("coins-amount").innerText = snakeGame.coins;
     }
 
+    let shopMessageTimeout = null;
+
     function purchaseSkin(skinId, price) {
       if (!snakeGame) return;
       if (snakeGame.ownedSkins.includes(skinId)) {
@@ -1324,7 +1343,12 @@
         saveSnakeProgress();
         initShop();
       } else {
-        alert(`Need ${price - snakeGame.coins} more coins!`);
+        // Show the message on screen (not a browser popup) and hide it after 3 seconds
+        const msgEl = document.getElementById("shop-message");
+        msgEl.innerText = `Not enough coins! You need ${price - snakeGame.coins} more.`;
+        msgEl.classList.add("show");
+        clearTimeout(shopMessageTimeout);
+        shopMessageTimeout = setTimeout(() => msgEl.classList.remove("show"), 3000);
       }
     }
 
@@ -1707,7 +1731,9 @@
           // Skip power-up check if food was eaten
         } else if (snakeGame.powerUp && newHead.x === snakeGame.powerUp.x && newHead.y === snakeGame.powerUp.y) {
           snakeGame[phaseFlag] = true;
-          snakeGame[phaseTmrFlag] = 300;
+          // The timer counts snake moves, and the snake moves 10 times a second,
+          // so 150 moves = 15 seconds
+          snakeGame[phaseTmrFlag] = 150;
           snakeGame.powerUp = null;
           snakeGame[scoreFlag] += 50;
 
@@ -2044,7 +2070,7 @@
 
         // Draw phase-through power-up timer if active
         if (snakeGame.phaseThrough) {
-          const secondsLeft = Math.max(0, Math.ceil(snakeGame.phaseThroughTimer / 60));
+          const secondsLeft = Math.max(0, Math.ceil(snakeGame.phaseThroughTimer / 10));
           ctx.fillStyle = "#ff00ff";
           ctx.font = "20px 'Share Tech Mono', monospace";
           ctx.shadowBlur = 10;
