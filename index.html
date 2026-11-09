@@ -888,8 +888,8 @@
       <!-- Live coding learning panel -->
       <div class="learn-panel">
         <h2>🎮 Controls</h2>
-        <ul>
-          <li><strong>Controls:</strong> Use the <span class="key-badge">◀ Left Arrow</span> and <span class="key-badge">▶ Right Arrow</span> keys to slide your ship back and forth.</li>
+        <ul id="controls-list">
+          <!-- Filled in by showControls() for whichever game is running -->
         </ul>
       </div>
     </div>
@@ -1231,7 +1231,45 @@
     }
 
     // Switch from dashboard to the chosen game
+    // Show the right instructions for each game (so Snake doesn't show Space Invaders keys!)
+    function showControls(gameId) {
+      const k = (text) => `<span class="key-badge">${text}</span>`;
+      const two = gameMode === "2p";
+      let items;
+      if (gameId === 'space-invaders') {
+        items = two ? [
+          `<strong>Player 1:</strong> ${k('◀')} ${k('▶')} to move, ${k('Space')} to shoot.`,
+          `<strong>Player 2:</strong> ${k('A')} ${k('D')} to move, ${k('W')} to shoot.`
+        ] : [
+          `<strong>Move:</strong> ${k('◀ Left Arrow')} and ${k('▶ Right Arrow')} slide your ship.`,
+          `<strong>Shoot:</strong> ${k('Space')}`
+        ];
+      } else if (gameId === 'retro-snake') {
+        items = two ? [
+          `<strong>Player 1 (red):</strong> ${k('Arrow keys')} to steer.`,
+          `<strong>Player 2 (purple):</strong> ${k('W')} ${k('A')} ${k('S')} ${k('D')} to steer.`,
+          `<strong>Pause:</strong> ${k('Space')}`
+        ] : [
+          `<strong>Steer:</strong> ${k('Arrow keys')} to turn the snake. Eat the pixels to grow!`,
+          `<strong>Pause:</strong> ${k('Space')} (press it again to carry on)`
+        ];
+      } else {
+        items = [
+          `<strong>Move:</strong> ${k('◀')} ${k('▶')} (or ${k('A')} ${k('D')}) to slide the piece.`,
+          `<strong>Rotate:</strong> ${k('▲')} (or ${k('W')}). <strong>Drop faster:</strong> ${k('▼')} (or ${k('S')}).`,
+          `<strong>Play again:</strong> ${k('Space')} after game over.`
+        ];
+      }
+      document.getElementById("controls-list").innerHTML = items.map(t => `<li>${t}</li>`).join('');
+    }
+
+    // Which game is on screen right now (null = the dashboard).
+    // Key handlers check this so Space in one game can't restart a different game!
+    let currentGameId = null;
+
     function launchGame(gameId) {
+      currentGameId = gameId;
+      showControls(gameId);
       dbScreen.style.display = "none";
       twoplaySetupScreen.style.display = "none";
       gameScreen.style.display = "block";
@@ -1264,6 +1302,18 @@
       if (activeGameLoop) {
         cancelAnimationFrame(activeGameLoop);
         activeGameLoop = null;
+      }
+
+      currentGameId = null;
+
+      // Stop listening for Snake and Tetris keys (otherwise they keep working on other screens)
+      if (window.snakeKeyHandler) {
+        window.removeEventListener('keydown', window.snakeKeyHandler);
+        window.snakeKeyHandler = null;
+      }
+      if (window.tetrisKeyHandler) {
+        window.removeEventListener('keydown', window.tetrisKeyHandler);
+        window.tetrisKeyHandler = null;
       }
 
       // 2. Save snake progress
@@ -1320,11 +1370,38 @@
         `;
       }).join('');
 
+      // Extras: dress-up items you can switch on and off after buying them
+      const extras = [
+        { id: "helmet", name: "Helmet", icon: "⛑️", price: 20 },
+        { id: "legs", name: "Legs", icon: "🦵", price: 5 }
+      ];
+      shopItemsEl.innerHTML += `<div style="grid-column: 1 / -1; color: var(--accent-teal); font-weight: bold;">✨ Extras</div>` +
+        extras.map(item => {
+          const owned = snakeGame.ownedExtras.includes(item.id);
+          const on = snakeGame.equippedExtras.includes(item.id);
+          return `
+          <div class="shop-item ${owned ? 'owned' : ''}" onclick="purchaseExtra('${item.id}', ${item.price})">
+            <span class="shop-item-icon">${item.icon}</span>
+            <div class="shop-item-name">${item.name}</div>
+            <div class="shop-item-price">${owned ? 'OWNED' : item.price + ' 💰'}</div>
+            ${owned ? `<div style="color: ${on ? '#00f0ff' : '#888'}; font-weight: bold; margin-top: 3px;">${on ? '✓ On' : 'Off'}</div>` : ''}
+          </div>`;
+        }).join('');
+
       shopEl.classList.add('show');
       document.getElementById("coins-amount").innerText = snakeGame.coins;
     }
 
     let shopMessageTimeout = null;
+
+    // Show a message on screen (not a browser popup) and hide it after 3 seconds
+    function showShopMessage(text) {
+      const msgEl = document.getElementById("shop-message");
+      msgEl.innerText = text;
+      msgEl.classList.add("show");
+      clearTimeout(shopMessageTimeout);
+      shopMessageTimeout = setTimeout(() => msgEl.classList.remove("show"), 3000);
+    }
 
     function purchaseSkin(skinId, price) {
       if (!snakeGame) return;
@@ -1343,12 +1420,29 @@
         saveSnakeProgress();
         initShop();
       } else {
-        // Show the message on screen (not a browser popup) and hide it after 3 seconds
-        const msgEl = document.getElementById("shop-message");
-        msgEl.innerText = `Not enough coins! You need ${price - snakeGame.coins} more.`;
-        msgEl.classList.add("show");
-        clearTimeout(shopMessageTimeout);
-        shopMessageTimeout = setTimeout(() => msgEl.classList.remove("show"), 3000);
+        showShopMessage(`Not enough coins! You need ${price - snakeGame.coins} more.`);
+      }
+    }
+
+    // Buy an extra (helmet / legs), or switch it on/off if you already own it
+    function purchaseExtra(extraId, price) {
+      if (!snakeGame) return;
+      if (snakeGame.ownedExtras.includes(extraId)) {
+        const i = snakeGame.equippedExtras.indexOf(extraId);
+        if (i >= 0) snakeGame.equippedExtras.splice(i, 1);
+        else snakeGame.equippedExtras.push(extraId);
+        saveSnakeProgress();
+        initShop();
+        return;
+      }
+      if (snakeGame.coins >= price) {
+        snakeGame.coins -= price;
+        snakeGame.ownedExtras.push(extraId);
+        snakeGame.equippedExtras.push(extraId);
+        saveSnakeProgress();
+        initShop();
+      } else {
+        showShopMessage(`Not enough coins! You need ${price - snakeGame.coins} more.`);
       }
     }
 
@@ -1357,6 +1451,8 @@
       localStorage.setItem("snake_coins", snakeGame.coins);
       localStorage.setItem("snake_owned_skins", JSON.stringify(snakeGame.ownedSkins));
       localStorage.setItem("snake_current_skin", snakeGame.currentSkin);
+      localStorage.setItem("snake_owned_extras", JSON.stringify(snakeGame.ownedExtras));
+      localStorage.setItem("snake_equipped_extras", JSON.stringify(snakeGame.equippedExtras));
     }
 
     function adjustBrightness(hexColor, brightness) {
@@ -1388,6 +1484,9 @@
     //            RETRO SNAKE GAME CODE
     // ==========================================
     let snakeGame = null;
+
+    // How long the yellow bonus food stays on screen (in milliseconds). 6000 = 6 seconds.
+    const GOLDEN_FOOD_MS = 6000;
 
     function startSnake() {
       const canvas = document.getElementById("gameCanvas");
@@ -1423,7 +1522,12 @@
         phaseThroughTimer2: 0,
         coins: 0,
         currentSkin: "classic",
-        ownedSkins: ["classic"]
+        ownedSkins: ["classic"],
+        ownedExtras: [],
+        equippedExtras: [],
+        paused: false,
+        pausedAt: 0,
+        steps: 0 // counts snake moves (used to wiggle the legs)
       };
 
       // Initialize second snake in 2-player mode
@@ -1492,6 +1596,12 @@
       if (savedCoins) snakeGame.coins = parseInt(savedCoins);
       if (savedSkins) snakeGame.ownedSkins = JSON.parse(savedSkins);
       if (savedCurrentSkin) snakeGame.currentSkin = savedCurrentSkin;
+      try {
+        const savedExtras = localStorage.getItem("snake_owned_extras");
+        const savedEquipped = localStorage.getItem("snake_equipped_extras");
+        if (savedExtras) snakeGame.ownedExtras = JSON.parse(savedExtras);
+        if (savedEquipped) snakeGame.equippedExtras = JSON.parse(savedEquipped);
+      } catch (e) { /* if saved data is broken, just start with no extras */ }
 
       // Generate random blocks on the map
       function generateBlocks() {
@@ -1566,13 +1676,25 @@
         }
 
         if (key === ' ') {
-          if (snakeGame.gameOver && (gameMode === "1p" || (gameMode === "2p" && snakeGame.gameOver2))) {
+          const allOver = snakeGame.gameOver && (gameMode === "1p" || snakeGame.gameOver2);
+          if (allOver) {
             startSnake(); // Restart
+          } else if (!snakeGame.paused) {
+            snakeGame.paused = true; // Pause!
+            snakeGame.pausedAt = Date.now();
+          } else {
+            snakeGame.paused = false; // Resume
+            // The golden food countdown uses the clock, so give back the time we were paused
+            snakeGame.goldenFoodSpawnTime += Date.now() - snakeGame.pausedAt;
           }
           e.preventDefault();
         }
       };
 
+      // Remove the old listener first, so restarting doesn't stack listeners
+      // (two listeners would pause and un-pause at the same time!)
+      if (window.snakeKeyHandler) window.removeEventListener('keydown', window.snakeKeyHandler);
+      window.snakeKeyHandler = handleKeyDown;
       window.addEventListener('keydown', handleKeyDown);
 
       // Helper to check if position is occupied
@@ -1760,8 +1882,8 @@
           snakeGame[phaseFlag] = false;
         }
 
-        // Check if golden food expired (3 seconds = 3000ms)
-        if (snakeGame.goldenFood && Date.now() - snakeGame.goldenFoodSpawnTime > 3000) {
+        // Check if golden food expired
+        if (snakeGame.goldenFood && Date.now() - snakeGame.goldenFoodSpawnTime > GOLDEN_FOOD_MS) {
           snakeGame.goldenFood = null;
           snakeGame.goldenFoodSpawnTime = 0;
         }
@@ -1825,7 +1947,7 @@
           const pulse = Math.sin(Date.now() / 200) * 0.5 + 0.5; // Pulsing effect
           const scale = 0.6 + pulse * 0.4; // Size varies 0.6 to 1.0
           const timeElapsed = Date.now() - snakeGame.goldenFoodSpawnTime;
-          const opacity = Math.max(0, 1 - (timeElapsed / 3000)); // Fade as timer runs out
+          const opacity = Math.max(0, 1 - (timeElapsed / GOLDEN_FOOD_MS)); // Fade as timer runs out
 
           ctx.save();
           ctx.globalAlpha = opacity;
@@ -1922,7 +2044,7 @@
         }
 
         // Helper to draw a single snake
-        function drawSingleSnake(snake, baseColor) {
+        function drawSingleSnake(snake, baseColor, extras = []) {
           for (let i = 0; i < snake.length; i++) {
             const segment = snake[i];
             const isHead = i === snake.length - 1;
@@ -1939,6 +2061,32 @@
             const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
             const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
             const size = isHead ? GRID_SIZE - 1 : GRID_SIZE - 2;
+
+            // Legs: two little legs sticking out sideways from every segment.
+            // We find which way the snake is going, then stick the legs out to the side.
+            if (extras.includes("legs")) {
+              const other = nextSegment || (i > 0 ? snake[i - 1] : null);
+              let dx = other ? other.x - segment.x : 1;
+              let dy = other ? other.y - segment.y : 0;
+              if (!nextSegment) { dx = -dx; dy = -dy; } // head looks away from its body
+              const len = Math.hypot(dx, dy) || 1;
+              const px = -dy / len; // sideways direction
+              const py = dx / len;
+              // Alternate the leg length every step, so the snake looks like it's walking
+              const stride = ((i + snakeGame.steps) % 2 === 0) ? 4 : 2;
+              ctx.save();
+              ctx.strokeStyle = adjustBrightness(baseColor, 0.5);
+              ctx.lineWidth = 2;
+              ctx.lineCap = "round";
+              ctx.shadowBlur = 0;
+              for (const side of [-1, 1]) {
+                ctx.beginPath();
+                ctx.moveTo(x + px * side * (size / 2 - 1), y + py * side * (size / 2 - 1));
+                ctx.lineTo(x + px * side * (size / 2 + stride) + dx / len * 2, y + py * side * (size / 2 + stride) + dy / len * 2);
+                ctx.stroke();
+              }
+              ctx.restore();
+            }
 
             if (isHead) {
               ctx.beginPath();
@@ -1968,6 +2116,21 @@
               ctx.beginPath();
               ctx.arc(x + 4 + eyeOffsetX, y - 3 + eyeOffsetY, eyeSize, 0, Math.PI * 2);
               ctx.fill();
+
+              // Helmet: a see-through silver dome over the top of the head (eyes still show!)
+              if (extras.includes("helmet")) {
+                ctx.save();
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(x, y, size / 2 + 1, Math.PI, Math.PI * 2);
+                ctx.closePath();
+                ctx.fillStyle = "rgba(200, 210, 230, 0.35)";
+                ctx.fill();
+                ctx.strokeStyle = "#c8d2e6";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.restore();
+              }
             } else {
               ctx.beginPath();
               ctx.arc(x, y, size / 2, 0, Math.PI * 2);
@@ -1997,7 +2160,8 @@
 
         // Draw snake 1 (Red for 2-player, or skin color for 1-player)
         const snake1Color = gameMode === "2p" ? "#ff4444" : getSnakeColor();
-        drawSingleSnake(snakeGame.snake, snake1Color);
+        // Helmet and legs only show in 1-player mode (that's where the shop is)
+        drawSingleSnake(snakeGame.snake, snake1Color, gameMode === "1p" ? snakeGame.equippedExtras : []);
 
         // Draw snake 2 (Purple) in 2-player mode
         if (gameMode === "2p" && snakeGame.snake2) {
@@ -2059,7 +2223,7 @@
         // Draw golden food timer if active
         if (snakeGame.goldenFood) {
           const timeElapsed = Date.now() - snakeGame.goldenFoodSpawnTime;
-          const secondsLeft = Math.max(0, Math.ceil((3000 - timeElapsed) / 1000));
+          const secondsLeft = Math.max(0, Math.ceil((GOLDEN_FOOD_MS - timeElapsed) / 1000));
           ctx.fillStyle = "#ffdd00";
           ctx.font = "20px 'Share Tech Mono', monospace";
           ctx.shadowBlur = 10;
@@ -2127,13 +2291,32 @@
       let gameSpeed = 6;
       let tickCount = 0;
 
+      function drawPauseScreen() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#00f0ff";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#00f0ff";
+        ctx.font = "bold 48px 'Share Tech Mono', monospace";
+        ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = "20px 'Share Tech Mono', monospace";
+        ctx.fillText("Press SPACE to keep playing", canvas.width / 2, canvas.height / 2 + 30);
+        ctx.shadowBlur = 0;
+        ctx.textAlign = "left";
+      }
+
       function runSnake() {
         tickCount++;
         if (tickCount >= gameSpeed) {
-          updateSnake();
+          if (!snakeGame.paused) {
+            updateSnake();
+            snakeGame.steps++;
+          }
           tickCount = 0;
         }
         drawSnake();
+        if (snakeGame.paused) drawPauseScreen();
         activeGameLoop = requestAnimationFrame(runSnake);
       }
 
@@ -2391,6 +2574,9 @@
         }
       };
 
+      // Remove the old listener first so restarting doesn't stack listeners
+      if (window.tetrisKeyHandler) window.removeEventListener('keydown', window.tetrisKeyHandler);
+      window.tetrisKeyHandler = handleKeyDown;
       window.addEventListener('keydown', handleKeyDown);
 
       let gameSpeed = 60; // Frames before piece drops
@@ -2710,7 +2896,7 @@
       if (event.code === "Space") {
         keys.Space = true;
         // Re-start game on Space key if game is over
-        if (gameOver) {
+        if (gameOver && currentGameId === 'space-invaders') {
           startSpaceInvaders();
         }
         event.preventDefault();
