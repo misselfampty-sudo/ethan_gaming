@@ -856,6 +856,14 @@
           <span class="card-badge badge-playable">Play Now</span>
           <div class="high-score-tag" id="tetris-high-score">High Score: 0</div>
         </div>
+
+        <!-- Fast Lane Life (Playable) -->
+        <div class="game-card" onclick="launchGame('fast-lane')">
+          <div class="card-icon">🏙️</div>
+          <h2 class="card-title">Fast Lane Life</h2>
+          <p class="card-desc">Work, study and shop around town to reach your goals first! Play with friends, or race the computer rival Jones.</p>
+          <span class="card-badge badge-playable">Play Now</span>
+        </div>
       </div>
     </div>
 
@@ -1253,6 +1261,13 @@
           `<strong>Steer:</strong> ${k('Arrow keys')} to turn the snake. Eat the pixels to grow!`,
           `<strong>Pause:</strong> ${k('Space')} (press it again to carry on)`
         ];
+      } else if (gameId === 'fast-lane') {
+        items = [
+          `<strong>Mouse:</strong> click a building to walk there (each step costs 1 hour), then click what you want to do.`,
+          `<strong>Goal:</strong> be the first to reach all four goals: 💰 wealth, 😊 happiness, 🎓 education, 💼 career.`,
+          `<strong>Each week</strong> you get 60 hours. When they run out, rent and food are paid and a new week starts.`,
+          `<strong>Tip:</strong> keep money in the Bank so burglars can't take it!`
+        ];
       } else {
         items = [
           `<strong>Move:</strong> ${k('◀')} ${k('▶')} (or ${k('A')} ${k('D')}) to slide the piece.`,
@@ -1276,7 +1291,10 @@
 
       const canvas = document.getElementById("gameCanvas");
       // Resize canvas based on game mode and game type
-      if (gameId === 'tetris') {
+      if (gameId === 'fast-lane') {
+        canvas.width = 960;
+        canvas.height = 640;
+      } else if (gameId === 'tetris') {
         canvas.width = 400;
         canvas.height = 800;
       } else if (gameMode === "2p") {
@@ -1293,6 +1311,8 @@
         startSnake();
       } else if (gameId === 'tetris') {
         startTetris();
+      } else if (gameId === 'fast-lane') {
+        startFastLane();
       }
     }
 
@@ -1315,6 +1335,7 @@
         window.removeEventListener('keydown', window.tetrisKeyHandler);
         window.tetrisKeyHandler = null;
       }
+      if (window.fastLaneCleanup) window.fastLaneCleanup();
 
       // 2. Save snake progress
       if (snakeGame && typeof saveSnakeProgress === 'function') {
@@ -4015,6 +4036,882 @@
       updateGame();
       drawGame();
       activeGameLoop = requestAnimationFrame(runGame);
+    }
+
+    // ==========================================
+    //   FAST LANE LIFE (a life-simulation board game)
+    // ==========================================
+    // THE IDEA: Every player secretly picks what matters most to them:
+    // money, happiness, education and career. Each week you get 60 hours.
+    // Walking around town, working, studying and shopping all cost hours.
+    // The first player to reach ALL of their goals wins!
+    // You can play with friends (taking turns) or race against the computer rival "Jones".
+    // Everything is drawn on the Canvas - no pictures needed.
+
+    const FL_W = 960;
+    const FL_H = 640;
+
+    // Numbers you can tweak to change how the game feels!
+    const FL = {
+      HOURS: 60,             // hours in a week
+      SHIFT: 6,              // hours in one work shift
+      START_CASH: 100,
+      MAX_EDU: 12,           // most courses you can take
+      WEALTH_PER_POINT: 40,  // 25 goal points in Wealth = $1,000 to save up
+      HAPPY_PER_POINT: 1.2,  // 25 goal points in Happiness = 30 happy points
+      EDU_PER_POINT: 0.2,    // 25 goal points in Education = 5 courses
+      CAREER_PER_POINT: 0.2  // 25 goal points in Career = 5 career points (job rank x 2)
+    };
+
+    // The 12 buildings around the town ring (the order matters: it's the order around the board!)
+    const FL_PLACES = [
+      { id: 'burger', name: 'Burger Joint', icon: '🍔', color: '#ff8c42' },
+      { id: 'grocery', name: 'Grocery Store', icon: '🛒', color: '#39ff14' },
+      { id: 'clothes', name: 'Clothing Shop', icon: '👔', color: '#d946ef' },
+      { id: 'electronics', name: 'Electronics', icon: '📺', color: '#00f0ff' },
+      { id: 'employment', name: 'Job Centre', icon: '📋', color: '#ffdd00' },
+      { id: 'university', name: 'University', icon: '🎓', color: '#7c83ff' },
+      { id: 'factory', name: 'Factory', icon: '🏭', color: '#b0b7c8' },
+      { id: 'home', name: 'Home', icon: '🏠', color: '#ff4d6d' },
+      { id: 'rent', name: 'Rent Office', icon: '🔑', color: '#ffb347' },
+      { id: 'bank', name: 'Bank', icon: '🏦', color: '#4ade80' },
+      { id: 'office', name: 'Office Tower', icon: '🏢', color: '#60a5fa' },
+      { id: 'arcade', name: 'Arcade', icon: '🕹️', color: '#ff007f' }
+    ];
+    // Look up a building's position by its id, like FL_AT.home
+    const FL_AT = {};
+    FL_PLACES.forEach((p, i) => { FL_AT[p.id] = i; });
+
+    // The four goals a player can care about
+    const FL_GOALS = [
+      { key: 'wealth', label: 'Wealth', icon: '💰', color: '#39ff14' },
+      { key: 'happy', label: 'Happiness', icon: '😊', color: '#ffdd00' },
+      { key: 'edu', label: 'Education', icon: '🎓', color: '#7c83ff' },
+      { key: 'career', label: 'Career', icon: '💼', color: '#00f0ff' }
+    ];
+
+    // Jobs: wage is dollars per hour. Better jobs need more courses, experience and nicer clothes.
+    const FL_JOBS = [
+      { id: 'cook', title: 'Burger Cook', where: FL_AT.burger, rank: 1, wage: 6, edu: 0, exp: 0, clothes: 0 },
+      { id: 'assembler', title: 'Factory Assembler', where: FL_AT.factory, rank: 1, wage: 7, edu: 0, exp: 0, clothes: 0 },
+      { id: 'shiftmgr', title: 'Shift Manager', where: FL_AT.burger, rank: 2, wage: 10, edu: 2, exp: 24, clothes: 1 },
+      { id: 'machinist', title: 'Machinist', where: FL_AT.factory, rank: 2, wage: 11, edu: 1, exp: 30, clothes: 0 },
+      { id: 'clerk', title: 'Office Clerk', where: FL_AT.office, rank: 3, wage: 13, edu: 3, exp: 36, clothes: 1 },
+      { id: 'foreman', title: 'Factory Foreman', where: FL_AT.factory, rank: 3, wage: 14, edu: 3, exp: 60, clothes: 1 },
+      { id: 'analyst', title: 'Business Analyst', where: FL_AT.office, rank: 4, wage: 19, edu: 6, exp: 80, clothes: 2 },
+      { id: 'manager', title: 'Office Manager', where: FL_AT.office, rank: 5, wage: 25, edu: 8, exp: 120, clothes: 2 },
+      { id: 'director', title: 'Director', where: FL_AT.office, rank: 6, wage: 33, edu: 10, exp: 180, clothes: 3 }
+    ];
+
+    const FL_CLOTHES = [
+      { name: 'Work clothes', price: 0 },
+      { name: 'Casual clothes', price: 60 },
+      { name: 'Business suit', price: 160 },
+      { name: 'Formal wear', price: 320 }
+    ];
+
+    const FL_GADGETS = [
+      { id: 'tv', name: 'TV', icon: '📺', price: 180, joy: 6 },
+      { id: 'stereo', name: 'Stereo', icon: '🔊', price: 120, joy: 4 },
+      { id: 'computer', name: 'Computer', icon: '💻', price: 400, joy: 8 }
+    ];
+
+    const FL_APTS = {
+      low: { name: 'Budget Flat', rent: 60, safe: false },
+      nice: { name: 'Secure Tower', rent: 140, safe: true }
+    };
+
+    const FL_COLORS = ['#00f0ff', '#ff007f', '#ffdd00', '#39ff14'];
+
+    // Quick goal-point presets (each goal needs at least 10 points, total must be 100)
+    const FL_PRESETS = [
+      { name: 'Balanced', g: { wealth: 25, happy: 25, edu: 25, career: 25 } },
+      { name: 'Rich', g: { wealth: 40, happy: 20, edu: 20, career: 20 } },
+      { name: 'Happy', g: { wealth: 20, happy: 40, edu: 20, career: 20 } },
+      { name: 'Scholar', g: { wealth: 20, happy: 20, edu: 40, career: 20 } },
+      { name: 'Boss', g: { wealth: 20, happy: 20, edu: 20, career: 40 } }
+    ];
+
+    let fl = null; // All the game's state lives in here
+
+    // ---------- Little helper functions ----------
+    function flMoney(n) { return '$' + Math.round(n).toLocaleString(); }
+    function flDist(a, b) { const d = Math.abs(a - b); return Math.min(d, FL_PLACES.length - d); } // steps around the ring
+    function flJobOf(p) { return FL_JOBS.find(j => j.id === p.job) || null; }
+    function flCourseCost(p) { return 30 + 10 * p.edu; }
+    function flOk(msg) { return { ok: true, msg }; }
+    function flFail(msg) { return { ok: false, msg }; }
+
+    function flTargets(goals) {
+      return {
+        wealth: goals.wealth * FL.WEALTH_PER_POINT,
+        happy: Math.ceil(goals.happy * FL.HAPPY_PER_POINT),
+        edu: Math.max(1, Math.round(goals.edu * FL.EDU_PER_POINT)),
+        career: Math.max(2, Math.round(goals.career * FL.CAREER_PER_POINT))
+      };
+    }
+
+    function flWealth(p) {
+      // Cash + bank + 60% of what your gadgets are worth if you sold them
+      let w = p.cash + p.bank;
+      for (const id of p.items) w += FL_GADGETS.find(g => g.id === id).price * 0.6;
+      return Math.floor(w);
+    }
+    function flCareer(p) { const j = flJobOf(p); return j ? j.rank * 2 : 0; }
+    function flNow(p) { return { wealth: flWealth(p), happy: p.happy, edu: p.edu, career: flCareer(p) }; }
+    function flGoalsMet(p) {
+      const n = flNow(p), t = p.targets;
+      return n.wealth >= t.wealth && n.happy >= t.happy && n.edu >= t.edu && n.career >= t.career;
+    }
+
+    // Why can't this player take this job yet? (empty text = they can!)
+    function flJobReason(p, j) {
+      if (p.edu < j.edu) return 'Needs ' + j.edu + ' courses';
+      if (p.exp < j.exp) return 'Needs ' + j.exp + ' hrs work';
+      if (p.clothes < j.clothes) return 'Needs ' + FL_CLOTHES[j.clothes].name;
+      return '';
+    }
+
+    function flMakePlayer(name, color, isAI, goals) {
+      return {
+        name, color, isAI,
+        goals: Object.assign({}, goals), targets: flTargets(goals),
+        cash: FL.START_CASH, bank: 0, happy: 5, edu: 0, exp: 0,
+        job: null, clothes: 0, items: [], apt: 'low',
+        food: 1, fed: false,
+        time: FL.HOURS, loc: FL_AT.home,
+        debt: 0, nextPenalty: 0, timeCarry: 0, weeks: 0
+      };
+    }
+
+    // Jones gets slightly random goals so he's different every game
+    function flJonesGoals() {
+      const g = { wealth: 25, happy: 25, edu: 25, career: 25 };
+      const keys = Object.keys(g);
+      for (let i = 0; i < 4; i++) {
+        const from = keys[Math.floor(Math.random() * 4)];
+        const to = keys[Math.floor(Math.random() * 4)];
+        if (from !== to && g[from] > 15) { g[from] -= 5; g[to] += 5; }
+      }
+      return g;
+    }
+
+    // ---------- Things a player can DO (humans use the menus, Jones calls these directly) ----------
+    // Each one returns { ok, msg } so we can show a friendly message on the screen.
+    const flAct = {
+      work(p) {
+        const j = flJobOf(p);
+        if (!j) return flFail("You don't have a job yet! Visit the Job Centre.");
+        const earn = j.wage * FL.SHIFT;
+        p.cash += earn; p.time -= FL.SHIFT; p.exp += FL.SHIFT;
+        return flOk('You worked a ' + FL.SHIFT + '-hour shift and earned ' + flMoney(earn) + '.');
+      },
+      meal(p) {
+        if (p.cash < 6) return flFail('A meal costs $6 and you only have ' + flMoney(p.cash) + '.');
+        p.cash -= 6; p.time -= 2; p.fed = true;
+        return flOk('Yum! You ate here, so you are fed for this week.');
+      },
+      shake(p) {
+        if (p.cash < 3) return flFail('A milkshake costs $3.');
+        p.cash -= 3; p.time -= 1; p.happy += 1;
+        return flOk('Tasty milkshake! +1 happiness.');
+      },
+      groceries(p) {
+        if (p.food >= 2) return flFail('Your fridge is already full!');
+        if (p.cash < 25) return flFail('Groceries cost $25 and you only have ' + flMoney(p.cash) + '.');
+        p.cash -= 25; p.time -= 2; p.food++;
+        return flOk('You bought a week of groceries. Food stock: ' + p.food + '.');
+      },
+      clothes(p, tier) {
+        const t = FL_CLOTHES[tier];
+        if (p.clothes >= tier) return flFail('You already have ' + t.name + ' or better.');
+        if (p.cash < t.price) return flFail(t.name + ' cost ' + flMoney(t.price) + ' and you have ' + flMoney(p.cash) + '.');
+        p.cash -= t.price; p.time -= 2; p.clothes = tier; p.happy += 2;
+        return flOk('You look great in your new ' + t.name + '! +2 happiness.');
+      },
+      gadget(p, id) {
+        const g = FL_GADGETS.find(x => x.id === id);
+        if (p.items.includes(id)) return flFail('You already own a ' + g.name + '.');
+        if (p.cash < g.price) return flFail('The ' + g.name + ' costs ' + flMoney(g.price) + ' and you have ' + flMoney(p.cash) + '.');
+        p.cash -= g.price; p.time -= 2; p.items.push(id); p.happy += g.joy;
+        return flOk('You bought a ' + g.name + '! +' + g.joy + ' happiness (and +1 every week).');
+      },
+      apply(p, jobId) {
+        const j = FL_JOBS.find(x => x.id === jobId);
+        const why = flJobReason(p, j);
+        if (why) return flFail(why + ' for that job.');
+        p.time -= 1; p.job = jobId;
+        return flOk('You got the job: ' + j.title + ' at ' + flMoney(j.wage) + ' an hour!');
+      },
+      study(p) {
+        const cost = flCourseCost(p);
+        if (p.edu >= FL.MAX_EDU) return flFail("You've finished every course. You're a genius!");
+        if (p.cash < cost) return flFail('This course costs ' + flMoney(cost) + ' and you have ' + flMoney(p.cash) + '.');
+        p.cash -= cost; p.time -= 10; p.edu++;
+        return flOk('Course passed! Education is now ' + p.edu + '.');
+      },
+      deposit(p, amt) {
+        amt = Math.min(amt, p.cash);
+        if (amt <= 0) return flFail('You have no cash to deposit.');
+        p.cash -= amt; p.bank += amt; p.time -= 1;
+        return flOk('Deposited ' + flMoney(amt) + '. Money in the bank is safe and earns 2% a week!');
+      },
+      withdraw(p, amt) {
+        amt = Math.min(amt, p.bank);
+        if (amt <= 0) return flFail('There is nothing in your bank account.');
+        p.bank -= amt; p.cash += amt; p.time -= 1;
+        return flOk('Withdrew ' + flMoney(amt) + '.');
+      },
+      moveApt(p, id) {
+        if (p.apt === id) return flFail('You already live there!');
+        p.apt = id; p.time -= 1;
+        return flOk('You moved into the ' + FL_APTS[id].name + '. Rent is ' + flMoney(FL_APTS[id].rent) + ' a week.');
+      },
+      relax(p) {
+        const gain = 2 + (p.items.includes('tv') ? 1 : 0);
+        p.time -= 3; p.happy += gain;
+        return flOk('You put your feet up. +' + gain + ' happiness.');
+      },
+      arcade(p, big) {
+        const cost = big ? 24 : 10, hrs = big ? 10 : 4, joy = big ? 11 : 4;
+        if (p.cash < cost) return flFail('That costs ' + flMoney(cost) + ' and you have ' + flMoney(p.cash) + '.');
+        p.cash -= cost; p.time -= hrs; p.happy += joy;
+        return flOk('So much fun! +' + joy + ' happiness.');
+      },
+      sleep(p) {
+        p.time = 0;
+        return flOk('You head to bed. The week is over!');
+      }
+    };
+
+    // ---------- Turn flow: weeks, rent, food and surprise events ----------
+    const FL_EVENTS = [
+      { can: p => !!p.job, run: p => { p.cash += 50; return ['🎉 Your boss gave you a surprise bonus: +$50!', 'good']; } },
+      { can: () => true, run: p => { p.cash += 20; p.happy += 2; return ['🍀 You found $20 on the street! +2 happiness.', 'good']; } },
+      { can: () => true, run: p => { p.happy += 3; return ['🎂 Friends threw you a party! +3 happiness.', 'good']; } },
+      { can: p => !FL_APTS[p.apt].safe && p.cash >= 30, run: p => { const loss = Math.floor(p.cash / 2); p.cash -= loss; return ['🦹 A burglar broke in and took ' + flMoney(loss) + '! (Tip: keep cash in the Bank, or live somewhere safe.)', 'bad']; } },
+      { can: () => true, run: p => { const loss = Math.min(35, p.cash); p.cash -= loss; return ['🏥 You had a doctor bill: -' + flMoney(loss) + '.', 'bad']; } },
+      { can: () => true, run: p => { const loss = Math.min(25, p.cash); p.cash -= loss; return ['🔧 Your bike broke: -' + flMoney(loss) + ' for repairs.', 'bad']; } },
+      { can: () => true, run: p => { p.nextPenalty += 8; return ['🤧 You caught a cold. Next week you will have 8 fewer hours.', 'bad']; } }
+    ];
+
+    function flStartTurn(p) {
+      // Overtime from last week and being hungry both take hours away from this week
+      p.time = Math.max(12, FL.HOURS - p.nextPenalty + p.timeCarry);
+      p.nextPenalty = 0; p.timeCarry = 0;
+      p.loc = FL_AT.home;
+      fl.menu = null;
+      fl.aiTimer = 0;
+      fl.message = p.name + ': Week ' + fl.week + '. You have ' + p.time + ' hours. Click a building to go there (1 hour per step).';
+    }
+
+    // The week is over for this player: pay rent, eat, collect interest, random event, check goals
+    function flEndWeek(p) {
+      const lines = [];
+      const add = (t, c) => lines.push({ t, c: c || 'info' });
+      p.timeCarry = Math.min(0, p.time);
+      p.time = 0;
+      p.weeks++;
+      fl.menu = null;
+
+      // Rent: take from cash first, then the bank
+      const apt = FL_APTS[p.apt];
+      const due = apt.rent + p.debt;
+      let toPay = due;
+      const fromCash = Math.min(p.cash, toPay); p.cash -= fromCash; toPay -= fromCash;
+      const fromBank = Math.min(p.bank, toPay); p.bank -= fromBank; toPay -= fromBank;
+      if (toPay > 0) {
+        p.debt = toPay; p.happy = Math.max(0, p.happy - 8);
+        add('🔑 Could not pay all the rent! You still owe ' + flMoney(toPay) + '. -8 happiness.', 'bad');
+      } else {
+        p.debt = 0;
+        add('🔑 Paid rent for the ' + apt.name + ': ' + flMoney(due) + '.', 'info');
+      }
+
+      // Food
+      if (p.fed) { add('🍔 You ate out this week.', 'info'); p.fed = false; }
+      else if (p.food > 0) { p.food--; add('🛒 You ate groceries from the fridge. Food stock left: ' + p.food + '.', 'info'); }
+      else { p.nextPenalty += 12; p.happy = Math.max(0, p.happy - 3); add('😫 No food! You are hungry: -3 happiness and 12 fewer hours next week.', 'bad'); }
+
+      // Bank interest
+      if (p.bank > 0) {
+        const interest = Math.round(p.bank * 0.02);
+        if (interest > 0) { p.bank += interest; add('🏦 Bank interest: +' + flMoney(interest) + '.', 'good'); }
+      }
+
+      // Gadgets keep us happy, but feelings also fade a little each week
+      if (p.items.length > 0) { p.happy += p.items.length; add('📺 Your gadgets cheered you up: +' + p.items.length + ' happiness.', 'good'); }
+      p.happy = Math.max(0, p.happy - 1);
+
+      // Random surprise
+      if (Math.random() < 0.6) {
+        const options = FL_EVENTS.filter(e => e.can(p));
+        const ev = options[Math.floor(Math.random() * options.length)].run(p);
+        add(ev[0], ev[1]);
+      }
+
+      const won = flGoalsMet(p);
+      if (won) {
+        add('🏆 ' + p.name + ' has reached ALL of their goals!', 'good');
+        add('The round will finish so everyone gets the same number of turns. If more than one player finishes, the richest wins!', 'info');
+      }
+      fl.summary = { player: p, lines, win: won };
+      fl.scene = 'summary';
+      fl.message = p.name + "'s week is over.";
+    }
+
+    function flContinue() {
+      const s = fl.summary;
+      fl.summary = null;
+      if (s && s.win) s.player.finished = true;
+      fl.cur++;
+      if (fl.cur >= fl.players.length) {
+        // The round is over. Did anyone reach all their goals? The richest finisher wins.
+        const finishers = fl.players.filter(q => q.finished);
+        if (finishers.length > 0) {
+          finishers.sort((a, b) => flWealth(b) - flWealth(a));
+          fl.winner = finishers[0];
+          fl.scene = 'win';
+          return;
+        }
+        fl.cur = 0; fl.week++;
+      }
+      fl.scene = 'play';
+      flStartTurn(fl.players[fl.cur]);
+    }
+
+    // After anything that uses up time, check if the week has run out
+    function flAfter(p) { if (p.time <= 0) flEndWeek(p); }
+
+    function flTravel(p, idx, noMenu) {
+      const steps = flDist(p.loc, idx);
+      p.time -= steps;
+      p.loc = idx;
+      fl.message = p.name + ' walked to the ' + FL_PLACES[idx].name + (steps ? ' (' + steps + ' hr' + (steps > 1 ? 's' : '') + ').' : '.');
+      if (p.time > 0) { if (!noMenu) fl.menu = { loc: idx, note: '', good: true }; }
+      flAfter(p);
+    }
+
+    // ---------- Jones, the computer rival ----------
+    // Jones follows a simple list of priorities, just like a person would think:
+    // eat, get a better job, dress well, study, save money, have fun, then work!
+    function flAiPick(p) {
+      const T = p.targets;
+      const home = { loc: FL_AT.home, run: () => flAct.sleep(p) };
+      const job = flJobOf(p);
+      const curWage = job ? job.wage : 0;
+      const pace = Math.min(1, fl.week / 14); // how far along Jones "should" be by now
+
+      if (p.time <= 3) return home;
+
+      if (!p.fed && p.food < 1 && p.cash >= 25 && p.time >= 8) return { loc: FL_AT.grocery, run: () => flAct.groceries(p) };
+
+      let best = null;
+      for (const j of FL_JOBS) {
+        if (j.wage > curWage && !flJobReason(p, j) && (!best || j.wage > best.wage)) best = j;
+      }
+      if (best && p.time >= 6) return { loc: FL_AT.employment, run: () => flAct.apply(p, best.id) };
+
+      const next = FL_JOBS.filter(j => j.wage > curWage).sort((a, b) => a.wage - b.wage)[0];
+      if (next && p.clothes < next.clothes) {
+        const tier = next.clothes, price = FL_CLOTHES[tier].price;
+        if (p.cash >= price + 20 && p.time >= 6) return { loc: FL_AT.clothes, run: () => flAct.clothes(p, tier) };
+      }
+
+      const needEdu = (next && p.edu < next.edu) || p.edu < T.edu * pace;
+      if (needEdu && p.edu < FL.MAX_EDU && p.cash >= flCourseCost(p) + 30 && p.time >= 12) {
+        return { loc: FL_AT.university, run: () => flAct.study(p) };
+      }
+
+      if (p.cash > 300 && p.time >= 5) return { loc: FL_AT.bank, run: () => flAct.deposit(p, p.cash - 120) };
+
+      const needJoy = p.happy < T.happy * pace;
+      if (needJoy) {
+        const gadget = FL_GADGETS.find(g => !p.items.includes(g.id) && p.cash >= g.price + 150);
+        if (gadget && p.time >= 6) return { loc: FL_AT.electronics, run: () => flAct.gadget(p, gadget.id) };
+        if (p.cash >= 90 && p.time >= 6) return { loc: FL_AT.arcade, run: () => flAct.arcade(p, false) };
+        if (p.time >= 5) return { loc: FL_AT.home, run: () => flAct.relax(p) };
+      }
+
+      if (job && p.time >= FL.SHIFT) return { loc: job.where, run: () => flAct.work(p) };
+      if (p.time >= 5 && p.happy < T.happy) return { loc: FL_AT.home, run: () => flAct.relax(p) };
+      return home;
+    }
+
+    function flAiStep() {
+      const p = fl.players[fl.cur];
+      const plan = flAiPick(p);
+      if (p.loc !== plan.loc) { flTravel(p, plan.loc, true); return; }
+      const r = plan.run();
+      fl.message = p.name + ': ' + r.msg;
+      if (!r.ok) p.time = 0; // If something went wrong, just end the week (this also stops endless loops)
+      flAfter(p);
+    }
+
+    // ---------- Game set-up ----------
+    function flNewGame() {
+      fl.scene = 'setup';
+      fl.players = [];
+      fl.cur = 0; fl.week = 1;
+      fl.menu = null; fl.summary = null; fl.winner = null;
+      fl.goalIdx = 0; fl.humanGoals = [];
+      fl.message = '';
+    }
+
+    function flBeginGoals() {
+      fl.humans = [];
+      for (let i = 0; i < fl.setup.humans; i++) {
+        const name = i === 0 ? (activeProfileName || 'Player 1') : 'Player ' + (i + 1);
+        fl.humans.push({ name, color: FL_COLORS[i], goals: Object.assign({}, FL_PRESETS[0].g) });
+      }
+      fl.goalIdx = 0;
+      fl.scene = 'goals';
+    }
+
+    function flStartPlaying() {
+      fl.players = fl.humans.map(h => flMakePlayer(h.name, h.color, false, h.goals));
+      if (fl.setup.jones || fl.setup.humans === 1) {
+        fl.players.push(flMakePlayer('Jones', '#ff8c42', true, flJonesGoals()));
+      }
+      fl.cur = 0; fl.week = 1;
+      fl.scene = 'play';
+      flStartTurn(fl.players[0]);
+    }
+
+    // ---------- Menus for each building ----------
+    // Returns a list of rows. A row is either { info } (just text) or a button { label, right, enabled, run }.
+    function flMenuRows(p, idx) {
+      const id = FL_PLACES[idx].id;
+      const rows = [];
+      // helper: a button row that runs an action and shows its message
+      const btn = (label, right, enabled, fn) => rows.push({
+        label, right, enabled,
+        run: () => { const r = fn(); fl.menu.note = r.msg; fl.menu.good = r.ok; if (r.ok) fl.message = r.msg; flAfter(p); }
+      });
+      const job = flJobOf(p);
+      const workRow = () => {
+        if (job && job.where === idx) btn('Work a shift (' + FL.SHIFT + ' hrs)', '+' + flMoney(job.wage * FL.SHIFT), true, () => flAct.work(p));
+        else if (job) rows.push({ info: 'Your job (' + job.title + ') is at the ' + FL_PLACES[job.where].name + '.' });
+        else rows.push({ info: "You don't have a job yet. Try the Job Centre!" });
+      };
+
+      if (id === 'burger') {
+        workRow();
+        btn('Eat a meal here (2 hrs)', '$6', true, () => flAct.meal(p));
+        btn('Milkshake (1 hr)', '$3', true, () => flAct.shake(p));
+      } else if (id === 'grocery') {
+        rows.push({ info: 'You have ' + p.food + ' week(s) of food in the fridge (max 2).' });
+        btn('Buy a week of groceries (2 hrs)', '$25', true, () => flAct.groceries(p));
+      } else if (id === 'clothes') {
+        rows.push({ info: 'You are wearing: ' + FL_CLOTHES[p.clothes].name + '. Better jobs need nicer clothes!' });
+        for (let t = 1; t < FL_CLOTHES.length; t++) {
+          btn('Buy ' + FL_CLOTHES[t].name + ' (2 hrs)', p.clothes >= t ? 'Owned' : flMoney(FL_CLOTHES[t].price), p.clothes < t, () => flAct.clothes(p, t));
+        }
+      } else if (id === 'electronics') {
+        rows.push({ info: 'Gadgets make you happy now and every single week!' });
+        for (const g of FL_GADGETS) {
+          const owned = p.items.includes(g.id);
+          btn(g.icon + ' ' + g.name + ' (2 hrs, +' + g.joy + ' happy)', owned ? 'Owned' : flMoney(g.price), !owned, () => flAct.gadget(p, g.id));
+        }
+      } else if (id === 'employment') {
+        for (const j of FL_JOBS) {
+          const isCur = p.job === j.id;
+          const why = flJobReason(p, j);
+          const right = isCur ? 'Your job' : (why || 'Apply (1 hr)');
+          btn(j.title + ' - ' + flMoney(j.wage) + '/hr', right, !isCur && !why, () => flAct.apply(p, j.id));
+        }
+      } else if (id === 'university') {
+        rows.push({ info: 'Courses finished: ' + p.edu + '. Each course raises your Education by 1 and unlocks better jobs.' });
+        const cost = flCourseCost(p);
+        btn('Take a course (10 hrs)', p.edu >= FL.MAX_EDU ? 'All done!' : flMoney(cost), p.edu < FL.MAX_EDU, () => flAct.study(p));
+      } else if (id === 'factory' || id === 'office') {
+        workRow();
+      } else if (id === 'home') {
+        rows.push({ info: 'Apartment: ' + FL_APTS[p.apt].name + '.  Food in fridge: ' + p.food + (p.fed ? ' (and you ate out)' : '') + '.' });
+        btn('Relax (3 hrs)', '+' + (2 + (p.items.includes('tv') ? 1 : 0)) + ' happy', true, () => flAct.relax(p));
+        btn('Go to bed (ends your week)', '', true, () => flAct.sleep(p));
+      } else if (id === 'rent') {
+        rows.push({ info: 'Rent is paid automatically at the end of every week.' });
+        for (const key of Object.keys(FL_APTS)) {
+          const a = FL_APTS[key];
+          btn('Move to the ' + a.name + (a.safe ? ' (no burglars!)' : ' (cheap, but risky)'), p.apt === key ? 'You live here' : flMoney(a.rent) + '/wk', p.apt !== key, () => flAct.moveApt(p, key));
+        }
+      } else if (id === 'bank') {
+        rows.push({ info: 'Cash on you: ' + flMoney(p.cash) + '.   In the bank: ' + flMoney(p.bank) + ' (earns 2% a week).' });
+        btn('Deposit $50 (1 hr)', '', p.cash > 0, () => flAct.deposit(p, 50));
+        btn('Deposit everything (1 hr)', '', p.cash > 0, () => flAct.deposit(p, p.cash));
+        btn('Withdraw $50 (1 hr)', '', p.bank > 0, () => flAct.withdraw(p, 50));
+        btn('Withdraw everything (1 hr)', '', p.bank > 0, () => flAct.withdraw(p, p.bank));
+      } else if (id === 'arcade') {
+        btn('Play some games (4 hrs)', '$10  +4 happy', true, () => flAct.arcade(p, false));
+        btn('All-day pass (10 hrs)', '$24  +11 happy', true, () => flAct.arcade(p, true));
+      }
+      return rows;
+    }
+
+    // ---------- Drawing helpers ----------
+    function flRound(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function flText(ctx, str, x, y, size, color, align, bold) {
+      ctx.font = (bold ? 'bold ' : '') + size + "px 'Share Tech Mono', monospace";
+      ctx.fillStyle = color || '#c8d2e6';
+      ctx.textAlign = align || 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(str, x, y);
+    }
+
+    // Break a long sentence into lines that fit
+    function flWrap(str, maxChars) {
+      const words = String(str).split(' ');
+      const lines = [];
+      let line = '';
+      for (const w of words) {
+        if ((line + ' ' + w).trim().length > maxChars) { lines.push(line); line = w; }
+        else line = (line + ' ' + w).trim();
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    // Draws a clickable button and remembers where it is so clicks can find it
+    function flButton(ctx, x, y, w, h, label, opt) {
+      opt = opt || {};
+      const enabled = opt.enabled !== false && !!opt.onClick;
+      const hover = enabled && fl.mx >= x && fl.mx <= x + w && fl.my >= y && fl.my <= y + h;
+      const color = opt.color || '#00f0ff';
+      flRound(ctx, x, y, w, h, 8);
+      ctx.fillStyle = hover ? '#1d2550' : '#0d1021';
+      ctx.fill();
+      ctx.lineWidth = hover ? 2 : 1;
+      ctx.strokeStyle = enabled ? color : '#333a5c';
+      ctx.stroke();
+      const size = opt.size || 16;
+      const tc = enabled ? (opt.textColor || '#ffffff') : '#6b7394';
+      if (opt.right) {
+        flText(ctx, label, x + 12, y + h / 2 + size / 3, size, tc, 'left');
+        const rightColor = enabled ? '#39ff14' : (opt.rightBad ? '#ff6b81' : '#8a91b3');
+        flText(ctx, opt.right, x + w - 12, y + h / 2 + size / 3, size - 1, rightColor, 'right');
+      } else {
+        flText(ctx, label, x + w / 2, y + h / 2 + size / 3, size, tc, 'center', true);
+      }
+      fl.buttons.push({ x, y, w, h, onClick: enabled ? opt.onClick : null });
+    }
+
+    function flBlocker() { fl.buttons.push({ x: 0, y: 0, w: FL_W, h: FL_H, onClick: null }); }
+
+    function flPanel(ctx, x, y, w, h, border) {
+      flRound(ctx, x, y, w, h, 12);
+      ctx.fillStyle = '#10142b';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = border || '#232a4e';
+      ctx.stroke();
+    }
+
+    function flBar(ctx, x, y, w, h, frac, color) {
+      ctx.fillStyle = '#0a0d1c';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), h);
+      ctx.strokeStyle = '#232a4e';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+    }
+
+    // ---------- Screens ----------
+    function flDrawSetup(ctx) {
+      flText(ctx, 'FAST LANE LIFE', FL_W / 2, 90, 52, '#00f0ff', 'center', true);
+      flText(ctx, 'Reach all your goals before anyone else!', FL_W / 2, 125, 20, '#c8d2e6', 'center');
+      flPanel(ctx, 190, 160, 580, 400, '#00f0ff');
+
+      flText(ctx, 'How many people are playing?', FL_W / 2, 205, 22, '#ffffff', 'center', true);
+      for (let n = 1; n <= 4; n++) {
+        const x = 250 + (n - 1) * 115;
+        const sel = fl.setup.humans === n;
+        flButton(ctx, x, 225, 95, 55, String(n), { size: 28, color: sel ? '#ffdd00' : '#232a4e', textColor: sel ? '#ffdd00' : '#ffffff', onClick: () => { fl.setup.humans = n; if (n === 1) fl.setup.jones = true; } });
+      }
+      flText(ctx, fl.setup.humans === 1 ? 'You will race against Jones, the computer!' : 'Players take turns on the same screen.', FL_W / 2, 310, 16, '#8a91b3', 'center');
+
+      const forced = fl.setup.humans === 1;
+      flButton(ctx, 250, 335, 460, 50, 'Computer rival "Jones": ' + (fl.setup.jones || forced ? 'ON' : 'OFF'), {
+        size: 18, enabled: !forced, color: '#ff8c42', onClick: () => { fl.setup.jones = !fl.setup.jones; }
+      });
+
+      const lines = [
+        'Each week you get 60 hours to spend.',
+        'Working, studying, shopping and walking all use hours.',
+        'Be the first to hit all four of your goals!'
+      ];
+      lines.forEach((t, i) => flText(ctx, t, FL_W / 2, 425 + i * 24, 16, '#8a91b3', 'center'));
+
+      flButton(ctx, 330, 490, 300, 55, 'NEXT: CHOOSE GOALS', { size: 20, color: '#39ff14', onClick: flBeginGoals });
+    }
+
+    function flDrawGoals(ctx) {
+      const h = fl.humans[fl.goalIdx];
+      const total = FL_GOALS.reduce((s, g) => s + h.goals[g.key], 0);
+      const left = 100 - total;
+      const targets = flTargets(h.goals);
+
+      flText(ctx, h.name + ': what matters most to you?', FL_W / 2, 60, 32, h.color, 'center', true);
+      flText(ctx, 'Share 100 goal points between the four goals (at least 10 each).', FL_W / 2, 92, 17, '#c8d2e6', 'center');
+      flPanel(ctx, 100, 115, 760, 400, h.color);
+
+      FL_GOALS.forEach((g, i) => {
+        const y = 150 + i * 80;
+        const val = h.goals[g.key];
+        flText(ctx, g.icon + ' ' + g.label, 130, y + 30, 22, '#ffffff', 'left', true);
+        flBar(ctx, 330, y + 10, 250, 26, val / 60, g.color);
+        flText(ctx, val + ' pts', 455, y + 29, 16, '#000000', 'center', true);
+        flButton(ctx, 600, y + 2, 50, 40, '-5', { size: 20, enabled: val > 10 && left < 100, onClick: () => { h.goals[g.key] -= 5; } });
+        flButton(ctx, 660, y + 2, 50, 40, '+5', { size: 20, enabled: left > 0, onClick: () => { h.goals[g.key] += 5; } });
+        let goalText = '';
+        if (g.key === 'wealth') goalText = 'Save ' + flMoney(targets.wealth);
+        if (g.key === 'happy') goalText = 'Reach ' + targets.happy + ' happy';
+        if (g.key === 'edu') goalText = targets.edu + ' courses';
+        if (g.key === 'career') goalText = 'Job rank ' + Math.ceil(targets.career / 2);
+        flText(ctx, goalText, 840, y + 29, 14, g.color, 'right');
+      });
+
+      flText(ctx, left === 0 ? 'All 100 points used. Ready!' : 'Points left to give out: ' + left, FL_W / 2, 485, 20, left === 0 ? '#39ff14' : '#ffdd00', 'center', true);
+
+      FL_PRESETS.forEach((pr, i) => {
+        flButton(ctx, 100 + i * 152, 530, 144, 40, pr.name, { size: 15, color: '#7c83ff', onClick: () => { Object.assign(h.goals, pr.g); } });
+      });
+      const last = fl.goalIdx === fl.humans.length - 1;
+      flButton(ctx, 330, 580, 300, 50, last ? 'START THE GAME!' : 'NEXT PLAYER', { size: 20, enabled: left === 0, color: '#39ff14', onClick: () => { if (last) flStartPlaying(); else fl.goalIdx++; } });
+    }
+
+    // Where each building sits on the screen
+    function flTilePos(i) {
+      const cells = [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1], [3, 2], [3, 3], [2, 3], [1, 3], [0, 3], [0, 2], [0, 1]];
+      return { x: 20 + cells[i][0] * 150, y: 20 + cells[i][1] * 110, w: 140, h: 100 };
+    }
+
+    function flDrawBoard(ctx) {
+      const p = fl.players[fl.cur];
+      const canClick = fl.scene === 'play' && !fl.menu && !p.isAI;
+
+      FL_PLACES.forEach((place, i) => {
+        const t = flTilePos(i);
+        const here = p.loc === i;
+        flRound(ctx, t.x, t.y, t.w, t.h, 10);
+        ctx.fillStyle = '#10142b';
+        ctx.fill();
+        ctx.lineWidth = here ? 3 : 1.5;
+        ctx.strokeStyle = here ? '#ffffff' : place.color;
+        ctx.stroke();
+        flText(ctx, place.icon, t.x + t.w / 2, t.y + 46, 34, '#ffffff', 'center');
+        flText(ctx, place.name, t.x + t.w / 2, t.y + 68, 14, place.color, 'center', true);
+
+        // Show how many hours it costs to walk here
+        if (canClick && !here) flText(ctx, flDist(p.loc, i) + 'h', t.x + t.w - 8, t.y + 18, 14, '#ffdd00', 'right', true);
+
+        // Tokens: a coloured dot for each player standing here
+        const standing = fl.players.filter(q => q.loc === i);
+        standing.forEach((q, k) => {
+          const cx = t.x + 18 + k * 20, cy = t.y + t.h - 12;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+          ctx.fillStyle = q.color;
+          ctx.fill();
+          flText(ctx, q.name[0], cx, cy + 4, 11, '#000000', 'center', true);
+        });
+
+        // Make the whole tile clickable (and glow when the mouse is over it)
+        if (canClick) {
+          const hover = fl.mx >= t.x && fl.mx <= t.x + t.w && fl.my >= t.y && fl.my <= t.y + t.h;
+          if (hover) { flRound(ctx, t.x, t.y, t.w, t.h, 10); ctx.lineWidth = 3; ctx.strokeStyle = place.color; ctx.stroke(); }
+          fl.buttons.push({ x: t.x, y: t.y, w: t.w, h: t.h, onClick: () => { if (here) fl.menu = { loc: i, note: '', good: true }; else flTravel(p, i); } });
+        }
+      });
+
+      // The middle of the board: whose turn it is and their stats
+      flPanel(ctx, 170, 130, 290, 210, p.color);
+      flText(ctx, p.name + (p.isAI ? ' (computer)' : ''), 185, 158, 20, p.color, 'left', true);
+      flText(ctx, 'Week ' + fl.week, 445, 158, 16, '#8a91b3', 'right');
+      flText(ctx, '⏱ ' + Math.max(0, p.time) + ' hours left', 185, 192, 24, p.time <= 10 ? '#ff6b81' : '#ffffff', 'left', true);
+      flText(ctx, '💵 ' + flMoney(p.cash) + '    🏦 ' + flMoney(p.bank), 185, 220, 16, '#39ff14', 'left');
+      const job = flJobOf(p);
+      flText(ctx, '💼 ' + (job ? job.title + ' ' + flMoney(job.wage) + '/hr' : 'No job yet'), 185, 244, 14, '#c8d2e6', 'left');
+      flText(ctx, '🏠 ' + FL_APTS[p.apt].name + '   🍔 Food: ' + (p.fed ? 'ate out' : p.food), 185, 266, 14, '#c8d2e6', 'left');
+      flText(ctx, '👔 ' + FL_CLOTHES[p.clothes].name, 185, 288, 14, '#c8d2e6', 'left');
+      flText(ctx, '🎓 ' + p.edu + ' courses   ⚒ ' + p.exp + ' hrs worked', 185, 310, 14, '#c8d2e6', 'left');
+    }
+
+    function flDrawSide(ctx) {
+      const n = fl.players.length;
+      const cardH = Math.min(135, Math.floor(600 / n) - 6);
+      fl.players.forEach((q, i) => {
+        const y = 20 + i * (cardH + 6);
+        const active = i === fl.cur;
+        flPanel(ctx, 630, y, 310, cardH, active ? q.color : '#232a4e');
+        flText(ctx, q.name + (q.isAI ? ' 🤖' : ''), 645, y + 24, 18, q.color, 'left', true);
+        if (active) flText(ctx, '◀ playing', 925, y + 24, 13, '#ffffff', 'right');
+        const now = flNow(q);
+        FL_GOALS.forEach((g, k) => {
+          const ry = y + 36 + k * Math.floor((cardH - 44) / 4);
+          const tgt = q.targets[g.key];
+          flText(ctx, g.icon, 645, ry + 13, 14, '#ffffff', 'left');
+          flBar(ctx, 672, ry + 2, 150, 12, now[g.key] / tgt, g.color);
+          const label = g.key === 'wealth' ? '$' + Math.min(now.wealth, 99999) + '/' + tgt : now[g.key] + '/' + tgt;
+          flText(ctx, label, 930, ry + 13, 12, now[g.key] >= tgt ? '#39ff14' : '#c8d2e6', 'right');
+        });
+      });
+    }
+
+    function flDrawBar(ctx) {
+      flPanel(ctx, 20, 465, 590, 96, '#232a4e');
+      flWrap(fl.message || '', 62).slice(0, 3).forEach((line, i) => flText(ctx, line, 36, 495 + i * 24, 16, '#c8d2e6', 'left'));
+      const p = fl.players[fl.cur];
+      const humanTurn = fl.scene === 'play' && !p.isAI && !fl.menu;
+      flButton(ctx, 20, 575, 190, 48, 'End my week', { size: 16, enabled: humanTurn, color: '#ff007f', onClick: () => { flAct.sleep(p); flAfter(p); } });
+      flButton(ctx, 225, 575, 190, 48, 'Back to Arcade', { size: 16, color: '#7c83ff', onClick: () => exitToDashboard() });
+    }
+
+    function flDrawMenu(ctx) {
+      const p = fl.players[fl.cur];
+      const idx = fl.menu.loc;
+      const place = FL_PLACES[idx];
+      const rows = flMenuRows(p, idx);
+      flBlocker();
+      flPanel(ctx, 30, 30, 590, 430, place.color);
+      flText(ctx, place.icon + ' ' + place.name, 50, 68, 28, place.color, 'left', true);
+      flText(ctx, '⏱ ' + Math.max(0, p.time) + 'h   ' + flMoney(p.cash), 465, 66, 16, '#ffffff', 'right');
+      flButton(ctx, 490, 44, 110, 34, 'Leave', { size: 15, color: '#ff007f', onClick: () => { fl.menu = null; } });
+
+      const buttonCount = rows.filter(r => !r.info).length;
+      const rowH = buttonCount > 6 ? 36 : 46;
+      let y = 92;
+      rows.forEach(r => {
+        if (r.info) {
+          flWrap(r.info, 62).forEach(line => { flText(ctx, line, 50, y + 14, 14, '#8a91b3', 'left'); y += 20; });
+          y += 6;
+        } else {
+          const bad = !r.enabled && r.right !== 'Owned' && r.right !== 'Your job' && r.right !== 'You live here';
+          flButton(ctx, 50, y, 550, rowH - 4, r.label, { size: 15, right: r.right, enabled: r.enabled, rightBad: bad, color: place.color, onClick: r.run });
+          y += rowH;
+        }
+      });
+      if (fl.menu.note) flWrap(fl.menu.note, 70).slice(0, 2).forEach((line, i) => flText(ctx, line, 50, 425 + i * 18, 14, fl.menu.good ? '#39ff14' : '#ff6b81', 'left', true));
+    }
+
+    function flDrawSummary(ctx) {
+      const s = fl.summary;
+      flBlocker();
+      flPanel(ctx, 130, 50, 700, 540, s.player.color);
+      flText(ctx, s.player.name + ': Week ' + (s.player.weeks) + ' is over', FL_W / 2, 100, 30, s.player.color, 'center', true);
+      let y = 150;
+      s.lines.forEach(l => {
+        const color = l.c === 'good' ? '#39ff14' : l.c === 'bad' ? '#ff6b81' : '#c8d2e6';
+        flWrap(l.t, 70).forEach(line => { flText(ctx, line, 160, y, 17, color, 'left'); y += 24; });
+        y += 8;
+      });
+      const now = flNow(s.player);
+      const t = s.player.targets;
+      flText(ctx, 'Goals:  💰 ' + now.wealth + '/' + t.wealth + '   😊 ' + now.happy + '/' + t.happy + '   🎓 ' + now.edu + '/' + t.edu + '   💼 ' + now.career + '/' + t.career, FL_W / 2, 535, 16, '#ffffff', 'center');
+      flButton(ctx, 360, 545, 240, 36, 'CONTINUE', { size: 17, color: '#39ff14', onClick: flContinue });
+    }
+
+    function flDrawWin(ctx) {
+      const w = fl.winner;
+      flBlocker();
+      flPanel(ctx, 180, 90, 600, 440, w.color);
+      flText(ctx, '🏆', FL_W / 2, 190, 70, '#ffffff', 'center');
+      flText(ctx, w.name + ' WINS!', FL_W / 2, 250, 44, w.color, 'center', true);
+      flText(ctx, 'after ' + w.weeks + ' weeks', FL_W / 2, 285, 22, '#ffffff', 'center');
+      flText(ctx, w.isAI ? 'Jones got there first. Want a rematch?' : 'You reached every one of your goals!', FL_W / 2, 330, 18, '#c8d2e6', 'center');
+      const n = flNow(w);
+      flText(ctx, flMoney(n.wealth) + ' saved  |  ' + n.happy + ' happy  |  ' + n.edu + ' courses  |  rank ' + Math.ceil(n.career / 2), FL_W / 2, 370, 16, '#8a91b3', 'center');
+      flButton(ctx, 330, 410, 300, 52, 'PLAY AGAIN', { size: 20, color: '#39ff14', onClick: flNewGame });
+      flButton(ctx, 330, 470, 300, 44, 'Back to Arcade', { size: 16, color: '#7c83ff', onClick: () => exitToDashboard() });
+    }
+
+    function flDraw() {
+      const ctx = fl.ctx;
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#070913';
+      ctx.fillRect(0, 0, FL_W, FL_H);
+      fl.buttons = [];
+      if (fl.scene === 'setup') flDrawSetup(ctx);
+      else if (fl.scene === 'goals') flDrawGoals(ctx);
+      else {
+        flDrawBoard(ctx);
+        flDrawSide(ctx);
+        flDrawBar(ctx);
+        if (fl.menu && fl.scene === 'play') flDrawMenu(ctx);
+        if (fl.scene === 'summary') flDrawSummary(ctx);
+        if (fl.scene === 'win') flDrawWin(ctx);
+      }
+      // Show a pointing hand when the mouse is over something clickable
+      let over = false;
+      for (let i = fl.buttons.length - 1; i >= 0; i--) {
+        const b = fl.buttons[i];
+        if (fl.mx >= b.x && fl.mx <= b.x + b.w && fl.my >= b.y && fl.my <= b.y + b.h) { over = !!b.onClick; break; }
+      }
+      fl.canvas.style.cursor = over ? 'pointer' : 'default';
+    }
+
+    function flUpdate() {
+      // Jones takes one action every little while so you can watch what he does
+      if (fl.scene === 'play' && fl.players.length) {
+        const p = fl.players[fl.cur];
+        if (p.isAI) {
+          fl.aiTimer++;
+          if (fl.aiTimer >= 40) { fl.aiTimer = 0; flAiStep(); }
+        }
+      }
+    }
+
+    function flRun() {
+      flUpdate();
+      flDraw();
+      activeGameLoop = requestAnimationFrame(flRun);
+    }
+
+    function startFastLane() {
+      const canvas = document.getElementById('gameCanvas');
+      // If we are restarting, remove the old mouse listeners first (so clicks don't count twice)
+      if (window.fastLaneCleanup) window.fastLaneCleanup();
+
+      fl = { canvas, ctx: canvas.getContext('2d'), buttons: [], mx: -1, my: -1, aiTimer: 0, setup: { humans: 1, jones: true } };
+      flNewGame();
+
+      // Turn a mouse position on the page into a position on our canvas
+      const toCanvas = (e) => {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height };
+      };
+      const onClick = (e) => {
+        const m = toCanvas(e);
+        // Check the top-most button first (the last one drawn)
+        for (let i = fl.buttons.length - 1; i >= 0; i--) {
+          const b = fl.buttons[i];
+          if (m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h) {
+            if (b.onClick) b.onClick();
+            return;
+          }
+        }
+      };
+      const onMove = (e) => { const m = toCanvas(e); fl.mx = m.x; fl.my = m.y; };
+      canvas.addEventListener('click', onClick);
+      canvas.addEventListener('mousemove', onMove);
+      window.fastLaneCleanup = () => {
+        canvas.removeEventListener('click', onClick);
+        canvas.removeEventListener('mousemove', onMove);
+        canvas.style.cursor = 'default';
+        window.fastLaneCleanup = null;
+      };
+
+      flRun();
     }
 
     // ==========================================
